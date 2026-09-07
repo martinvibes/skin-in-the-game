@@ -1,0 +1,189 @@
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   BASE
+   ========================================================================== */
+
+@layer base {
+  html,
+  body {
+    background: #0b0a09;
+    color: #efe8da;
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Tabular figures everywhere a number can change. A PnL column that reflows
+     as digits change width is unreadable at a glance, and this product is
+     almost entirely numbers that change. */
+  .font-mono,
+  code,
+  pre,
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum", "zero";
+  }
+
+  ::selection {
+    background: rgba(245, 178, 61, 0.3);
+    color: #efe8da;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #241f1b;
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3a3631;
+  }
+
+  /* Motion is used for arrival and for the stamp; anyone who has asked the OS
+     to stop it gets a static page rather than a degraded one. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}
+
+/* ==========================================================================
+   COMPONENTS
+   ========================================================================== */
+
+@layer components {
+  /* ------------------------------------------------------------------------
+     SLIP — the signature surface. A betting slip: torn top and bottom edge,
+     ruled interior, and a rubber stamp. Every call the agent makes renders as
+     one of these, because a slip is exactly what a call is — a claim, a price,
+     and money committed against it.
+
+     The perforation is drawn with a repeating radial gradient masking the
+     edge, so it survives any width without a background image.
+     ------------------------------------------------------------------------ */
+  .slip {
+    position: relative;
+    background: linear-gradient(180deg, #141211 0%, #100e0d 100%);
+    border-left: 1px solid #241f1b;
+    border-right: 1px solid #241f1b;
+  }
+
+  .slip::before,
+  .slip::after {
+    content: "";
+    position: absolute;
+    left: -1px;
+    right: -1px;
+    height: 6px;
+    background-image: radial-gradient(circle at 6px 0, transparent 0 5px, #241f1b 5px 6px);
+    background-size: 12px 6px;
+    background-repeat: repeat-x;
+  }
+  .slip::before {
+    top: -1px;
+  }
+  .slip::after {
+    bottom: -1px;
+    transform: scaleY(-1);
+  }
+
+  /* ------------------------------------------------------------------------
+     LEDGER — ruled accounting paper. Flat, no blur, no shadow: the content is
+     the figure and the surface should read as the page it is written on.
+     ------------------------------------------------------------------------ */
+  .ledger {
+    background: #0e0d0c;
+    border: 1px solid #241f1b;
+  }
+
+  .ledger-row {
+    border-bottom: 1px solid rgba(36, 31, 27, 0.7);
+    transition: background 160ms ease;
+  }
+  .ledger-row:last-child {
+    border-bottom: none;
+  }
+  .ledger-row:hover {
+    background: rgba(239, 232, 218, 0.022);
+  }
+
+  /* ------------------------------------------------------------------------
+     STAMP — rubber-stamp result marker. Rotated, letterspaced, hollow box with
+     a slightly irregular border to avoid looking like a button.
+     ------------------------------------------------------------------------ */
+  .stamp {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    border: 2px solid currentColor;
+    border-radius: 2px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-weight: 700;
+    font-size: 0.625rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    transform: rotate(-7deg);
+    opacity: 0.9;
+  }
+
+  /* ------------------------------------------------------------------------
+     HAIRLINE — a 1px rule in the ledger family, used to separate sections
+     without introducing another surface.
+     ------------------------------------------------------------------------ */
+  .hairline {
+    height: 1px;
+    background: linear-gradient(90deg, #241f1b 0%, #241f1b 70%, transparent 100%);
+  }
+
+  /* Faint ruled-paper backdrop for the page. Horizontal lines only, spaced to
+     the body line-height, at an opacity that reads as texture not as a grid. */
+  .bg-ruled {
+    background-image: repeating-linear-gradient(
+      180deg,
+      transparent 0 27px,
+      rgba(239, 232, 218, 0.018) 27px 28px
+    );
+  }
+
+  .label {
+    font-size: 0.6875rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #6b655c;
+  }
+}
+
+/* ==========================================================================
+   UTILITIES
+   ========================================================================== */
+
+@layer utilities {
+  /* Draws an SVG path on scroll-in. Paired with pathLength="1" so the dash
+     maths is resolution-independent. */
+  .draw-path {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: draw 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes draw {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+}
