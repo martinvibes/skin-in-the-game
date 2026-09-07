@@ -179,6 +179,18 @@ draw, and the whole page gzips to 53 kB.
 npm run web:dev
 ```
 
+<details>
+<summary>Deploying it yourself</summary>
+
+The dashboard lives in `web/`, and this repo has **two** `package.json` files —
+the CLI's at the root and the web app's in `web/`. Set the Vercel project's
+**Root Directory to `web`**, or the build runs the root `package.json`'s
+`build` script (`tsc -p tsconfig.json`, which compiles the CLI) and deploys
+nothing servable. The symptom is a successful build followed by a 404 on every
+route. [`web/vercel.json`](web/vercel.json) supplies the rest.
+
+</details>
+
 ---
 
 ## Quick start
