@@ -7,6 +7,8 @@
 Its track record is not a claim it writes about itself.
 It is settled positions on Binance prediction markets, scored with a rule it cannot game.
 
+**[Live dashboard →](https://skin-in-the-game-five.vercel.app)**
+
 [![Binance Agent OS](https://img.shields.io/badge/Binance-Agent%20OS-F0B90B?style=flat-square)](https://agent.binance.com)
 [![Agentic Wallet](https://img.shields.io/badge/Agentic%20Wallet-baw-F0B90B?style=flat-square)](https://github.com/binance/binance-skills-hub)
 [![MCP Server](https://img.shields.io/badge/MCP-agent.binance.com-5FD693?style=flat-square)](https://agent.binance.com/mcp/agentic)
@@ -145,8 +147,13 @@ SCAN
 
 ### The dashboard
 
-A static React page rendering the same JSON the CLI exports — equity curve
-split at zero, a reliability diagram, the slips, and the ledger.
+**[skin-in-the-game-five.vercel.app](https://skin-in-the-game-five.vercel.app)**
+
+A static React page rendering the same `record.json` the CLI exports — equity
+curve split at zero, a reliability diagram, the slips, and the ledger. No
+backend: the page reads one file, so what it shows is exactly what
+`skin export` produced. The mode badge in the header is permanent, so a demo
+number can never be mistaken for a live one.
 
 ```bash
 npm run web:dev
