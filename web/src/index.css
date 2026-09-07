@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -11,11 +11,21 @@
 @layer base {
   html,
   body {
-    background: #0b0a09;
-    color: #efe8da;
+    background: #08090a;
+    color: #f4f1ea;
     font-family: Inter, ui-sans-serif, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    /* Two very soft radial washes so the near-black is not flat. Kept under 6%
+       opacity: the moment they are visible as shapes they read as decoration,
+       and this page is meant to read as an instrument. */
+    background-image:
+      radial-gradient(60rem 40rem at 15% -10%, rgba(94, 233, 213, 0.05), transparent 60%),
+      radial-gradient(50rem 35rem at 85% 5%, rgba(251, 191, 36, 0.035), transparent 60%);
+    background-attachment: fixed;
   }
 
   /* Tabular figures everywhere a number can change. A PnL column that reflows
@@ -30,35 +40,15 @@
   }
 
   ::selection {
-    background: rgba(245, 178, 61, 0.3);
-    color: #efe8da;
+    background: rgba(94, 233, 213, 0.25);
   }
 
-  ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #241f1b;
-    border-radius: 8px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #3a3631;
-  }
-
-  /* Motion is used for arrival and for the stamp; anyone who has asked the OS
-     to stop it gets a static page rather than a degraded one. */
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.001ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.001ms !important;
-    }
+  /* Focus is never removed, only restyled — this app has a text input that
+     gates real money, and it has to be obvious where the caret is. */
+  :focus-visible {
+    outline: 2px solid #5ee9d5;
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 }
 
@@ -67,104 +57,61 @@
    ========================================================================== */
 
 @layer components {
-  /* ------------------------------------------------------------------------
-     SLIP — the signature surface. A betting slip: torn top and bottom edge,
-     ruled interior, and a rubber stamp. Every call the agent makes renders as
-     one of these, because a slip is exactly what a call is — a claim, a price,
-     and money committed against it.
-
-     The perforation is drawn with a repeating radial gradient masking the
-     edge, so it survives any width without a background image.
-     ------------------------------------------------------------------------ */
-  .slip {
-    position: relative;
-    background: linear-gradient(180deg, #141211 0%, #100e0d 100%);
-    border-left: 1px solid #241f1b;
-    border-right: 1px solid #241f1b;
+  /* The one panel shape used everywhere. Large radius, hairline border, and a
+     top inner highlight so panels read as raised rather than cut out. */
+  .panel {
+    @apply rounded-panel border border-line bg-panel;
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.035),
+      0 24px 60px -30px rgba(0, 0, 0, 0.9);
   }
 
-  .slip::before,
-  .slip::after {
-    content: "";
-    position: absolute;
-    left: -1px;
-    right: -1px;
-    height: 6px;
-    background-image: radial-gradient(circle at 6px 0, transparent 0 5px, #241f1b 5px 6px);
-    background-size: 12px 6px;
-    background-repeat: repeat-x;
-  }
-  .slip::before {
-    top: -1px;
-  }
-  .slip::after {
-    bottom: -1px;
-    transform: scaleY(-1);
+  .panel-flat {
+    @apply rounded-card border border-line bg-panel;
   }
 
-  /* ------------------------------------------------------------------------
-     LEDGER — ruled accounting paper. Flat, no blur, no shadow: the content is
-     the figure and the surface should read as the page it is written on.
-     ------------------------------------------------------------------------ */
-  .ledger {
-    background: #0e0d0c;
-    border: 1px solid #241f1b;
+  /* Pill buttons, per the reference language. Primary is cream-on-dark. */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5
+           font-display text-sm font-medium transition duration-150;
+  }
+  .btn-primary {
+    @apply btn bg-cream text-void hover:bg-white active:scale-[0.98];
+  }
+  .btn-ghost {
+    @apply btn border border-line-bright bg-raised text-cream
+           hover:border-ghost hover:bg-[#191d21] active:scale-[0.98];
+  }
+  .btn-quiet {
+    @apply btn text-muted hover:text-cream;
+  }
+  .btn:disabled {
+    @apply pointer-events-none opacity-40;
   }
 
-  .ledger-row {
-    border-bottom: 1px solid rgba(36, 31, 27, 0.7);
-    transition: background 160ms ease;
-  }
-  .ledger-row:last-child {
-    border-bottom: none;
-  }
-  .ledger-row:hover {
-    background: rgba(239, 232, 218, 0.022);
-  }
-
-  /* ------------------------------------------------------------------------
-     STAMP — rubber-stamp result marker. Rotated, letterspaced, hollow box with
-     a slightly irregular border to avoid looking like a button.
-     ------------------------------------------------------------------------ */
-  .stamp {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.125rem 0.5rem;
-    border: 2px solid currentColor;
-    border-radius: 2px;
-    font-family: "JetBrains Mono", ui-monospace, monospace;
-    font-weight: 700;
-    font-size: 0.625rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    transform: rotate(-7deg);
-    opacity: 0.9;
-  }
-
-  /* ------------------------------------------------------------------------
-     HAIRLINE — a 1px rule in the ledger family, used to separate sections
-     without introducing another surface.
-     ------------------------------------------------------------------------ */
-  .hairline {
-    height: 1px;
-    background: linear-gradient(90deg, #241f1b 0%, #241f1b 70%, transparent 100%);
-  }
-
-  /* Faint ruled-paper backdrop for the page. Horizontal lines only, spaced to
-     the body line-height, at an opacity that reads as texture not as a grid. */
-  .bg-ruled {
-    background-image: repeating-linear-gradient(
-      180deg,
-      transparent 0 27px,
-      rgba(239, 232, 218, 0.018) 27px 28px
-    );
-  }
-
+  /* Small uppercase label. Used for every section eyebrow and column head, so
+     the whole app has one voice for "this is metadata, not content". */
   .label {
-    font-size: 0.6875rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: #6b655c;
+    @apply font-mono text-2xs uppercase tracking-[0.16em] text-faint;
+  }
+
+  /* Chip: the status/metadata pill next to the logo and on market rows. */
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line-bright
+           bg-raised px-2.5 py-1 font-mono text-2xs uppercase tracking-[0.12em] text-muted;
+  }
+
+  /* Terminal surface for the console. Slightly darker than a panel so the
+     console reads as a window into the tool rather than another card. */
+  .terminal {
+    @apply rounded-panel border border-line bg-[#0A0C0D];
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.03),
+      0 30px 70px -30px rgba(0, 0, 0, 0.95);
+  }
+
+  .hairline {
+    @apply border-t border-line;
   }
 }
 
@@ -173,17 +120,38 @@
    ========================================================================== */
 
 @layer utilities {
-  /* Draws an SVG path on scroll-in. Paired with pathLength="1" so the dash
-     maths is resolution-independent. */
+  /* Equity line draw-on. pathLength is normalised to 1 in the SVG so this
+     works regardless of the path's real length. */
   .draw-path {
     stroke-dasharray: 1;
-    stroke-dashoffset: 1;
-    animation: draw 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: draw 1.1s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
-  @keyframes draw {
-    to {
-      stroke-dashoffset: 0;
-    }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #2a3037 transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #2a3037;
+    border-radius: 999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* Motion is meaningful here — the console plays a sequence — but it is never
+   the only channel: every step is also legible as static text once it lands. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
   }
 }

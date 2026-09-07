@@ -23,8 +23,8 @@ import { usd, pct } from '../lib/data';
 /**
  * Cumulative realized PnL, one step per settled call.
  *
- * The zero line is drawn emphatically and the area is filled in jade above it
- * and vermilion below, because the single question a reader asks of this chart
+ * The zero line is drawn emphatically and the area is filled green above it
+ * and red below, because the single question a reader asks of this chart
  * is "is it above or below the line?" — and that should be answerable from
  * across a room, before any axis is read.
  */
@@ -36,7 +36,7 @@ export function EquityCurve({ points }: { points: EquityPoint[] }) {
 
   if (points.length === 0) {
     return (
-      <div className="flex h-[260px] items-center justify-center text-sm text-ink-faint">
+      <div className="flex h-[260px] items-center justify-center text-sm text-faint">
         No settled calls yet — nothing to plot.
       </div>
     );
@@ -74,7 +74,7 @@ export function EquityCurve({ points }: { points: EquityPoint[] }) {
         aria-label={`Cumulative realized profit and loss across ${points.length} settled calls, ending at ${usd(values[values.length - 1] ?? 0, true)}`}
       >
         <defs>
-          {/* Split the area fill at the zero line: jade above, vermilion below. */}
+          {/* Split the area fill at the zero line: gain above, loss below. */}
           <clipPath id={`${gid}-above`}>
             <rect x={0} y={0} width={W} height={zeroY} />
           </clipPath>
@@ -82,12 +82,12 @@ export function EquityCurve({ points }: { points: EquityPoint[] }) {
             <rect x={0} y={zeroY} width={W} height={H - zeroY} />
           </clipPath>
           <linearGradient id={`${gid}-up`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#5FD693" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="#5FD693" stopOpacity="0" />
+            <stop offset="0%" stopColor="#4ADE80" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="#4ADE80" stopOpacity="0" />
           </linearGradient>
           <linearGradient id={`${gid}-down`} x1="0" y1="1" x2="0" y2="0">
-            <stop offset="0%" stopColor="#E5594F" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="#E5594F" stopOpacity="0" />
+            <stop offset="0%" stopColor="#FB7185" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="#FB7185" stopOpacity="0" />
           </linearGradient>
         </defs>
 
@@ -99,14 +99,14 @@ export function EquityCurve({ points }: { points: EquityPoint[] }) {
               x2={W - PAD.right}
               y1={y(v)}
               y2={y(v)}
-              stroke="#241F1B"
+              stroke="#1D2125"
               strokeWidth="1"
             />
             <text
               x={PAD.left - 10}
               y={y(v) + 4}
               textAnchor="end"
-              className="fill-ink-ghost font-mono"
+              className="fill-ghost font-mono"
               fontSize="11"
             >
               {usd(v, true)}
@@ -123,7 +123,7 @@ export function EquityCurve({ points }: { points: EquityPoint[] }) {
           x2={W - PAD.right}
           y1={zeroY}
           y2={zeroY}
-          stroke="#6B655C"
+          stroke="#626A71"
           strokeWidth="1"
           strokeDasharray="3 3"
         />
@@ -131,7 +131,7 @@ export function EquityCurve({ points }: { points: EquityPoint[] }) {
         <path
           d={line}
           fill="none"
-          stroke="#EFE8DA"
+          stroke="#F4F1EA"
           strokeWidth="1.75"
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -145,15 +145,15 @@ export function EquityCurve({ points }: { points: EquityPoint[] }) {
             cx={x(i)}
             cy={y(p.cumulativePnl)}
             r={3}
-            fill={p.outcome === 'WON' ? '#5FD693' : '#E5594F'}
-            stroke="#0B0A09"
+            fill={p.outcome === 'WON' ? '#4ADE80' : '#FB7185'}
+            stroke="#0E1012"
             strokeWidth="1.5"
           >
             <title>{`#${p.index} ${p.outcome} · ${usd(p.cumulativePnl, true)} · ${p.question}`}</title>
           </circle>
         ))}
       </svg>
-      <figcaption className="mt-2 flex justify-between font-mono text-2xs text-ink-ghost">
+      <figcaption className="mt-2 flex justify-between font-mono text-2xs text-ghost">
         <span>call 1</span>
         <span>call {points.length}</span>
       </figcaption>
@@ -194,12 +194,12 @@ export function CalibrationPlot({ bins }: { bins: CalibrationBin[] }) {
         aria-label="Reliability diagram: stated confidence against observed win frequency"
       >
         {/* frame */}
-        <rect x={PAD} y={PAD} width={inner} height={inner} fill="none" stroke="#241F1B" />
+        <rect x={PAD} y={PAD} width={inner} height={inner} fill="none" stroke="#1D2125" />
 
         {[0.25, 0.5, 0.75].map((t) => (
           <g key={t}>
-            <line x1={x(t)} x2={x(t)} y1={PAD} y2={PAD + inner} stroke="#1A1614" />
-            <line x1={PAD} x2={PAD + inner} y1={y(t)} y2={y(t)} stroke="#1A1614" />
+            <line x1={x(t)} x2={x(t)} y1={PAD} y2={PAD + inner} stroke="#15181B" />
+            <line x1={PAD} x2={PAD + inner} y1={y(t)} y2={y(t)} stroke="#15181B" />
           </g>
         ))}
 
@@ -209,12 +209,12 @@ export function CalibrationPlot({ bins }: { bins: CalibrationBin[] }) {
           y1={y(0)}
           x2={x(1)}
           y2={y(1)}
-          stroke="#F5B23D"
+          stroke="#FBBF24"
           strokeWidth="1.25"
           strokeDasharray="4 4"
           opacity={0.7}
         />
-        <text x={x(0.62)} y={y(0.55)} className="fill-amber-dim font-mono" fontSize="9">
+        <text x={x(0.62)} y={y(0.55)} className="fill-money font-mono" fontSize="9">
           perfect honesty
         </text>
 
@@ -229,7 +229,7 @@ export function CalibrationPlot({ bins }: { bins: CalibrationBin[] }) {
                 y1={y(b.observedRate)}
                 x2={x(b.meanConviction)}
                 y2={y(b.meanConviction)}
-                stroke={over ? '#E5594F' : '#5FD693'}
+                stroke={over ? '#FB7185' : '#4ADE80'}
                 strokeWidth="1"
                 opacity={0.45}
               />
@@ -237,8 +237,8 @@ export function CalibrationPlot({ bins }: { bins: CalibrationBin[] }) {
                 cx={x(b.meanConviction)}
                 cy={y(b.observedRate)}
                 r={r}
-                fill={over ? 'rgba(229,89,79,0.22)' : 'rgba(95,214,147,0.22)'}
-                stroke={over ? '#E5594F' : '#5FD693'}
+                fill={over ? 'rgba(251,113,133,0.20)' : 'rgba(74,222,128,0.20)'}
+                stroke={over ? '#FB7185' : '#4ADE80'}
                 strokeWidth="1.5"
               >
                 <title>
@@ -254,7 +254,7 @@ export function CalibrationPlot({ bins }: { bins: CalibrationBin[] }) {
           x={PAD + inner / 2}
           y={S - 10}
           textAnchor="middle"
-          className="fill-ink-faint font-mono"
+          className="fill-faint font-mono"
           fontSize="10"
         >
           said
@@ -264,17 +264,17 @@ export function CalibrationPlot({ bins }: { bins: CalibrationBin[] }) {
           y={PAD + inner / 2}
           textAnchor="middle"
           transform={`rotate(-90 12 ${PAD + inner / 2})`}
-          className="fill-ink-faint font-mono"
+          className="fill-faint font-mono"
           fontSize="10"
         >
           actual
         </text>
         {[0, 1].map((t) => (
           <g key={t}>
-            <text x={x(t)} y={S - 24} textAnchor="middle" className="fill-ink-ghost font-mono" fontSize="9">
+            <text x={x(t)} y={S - 24} textAnchor="middle" className="fill-ghost font-mono" fontSize="9">
               {t * 100}%
             </text>
-            <text x={PAD - 8} y={y(t) + 3} textAnchor="end" className="fill-ink-ghost font-mono" fontSize="9">
+            <text x={PAD - 8} y={y(t) + 3} textAnchor="end" className="fill-ghost font-mono" fontSize="9">
               {t * 100}%
             </text>
           </g>
@@ -282,23 +282,23 @@ export function CalibrationPlot({ bins }: { bins: CalibrationBin[] }) {
       </svg>
 
       {bins.length === 0 ? (
-        <p className="mt-3 text-center text-sm text-ink-faint">
+        <p className="mt-3 text-center text-sm text-faint">
           No journalled convictions yet — nothing to calibrate.
         </p>
       ) : (
         // Two rows rather than three inline items: the plot is capped at 320px
         // wide, and a single row wraps the last label into a ragged three-line
         // stack at every viewport.
-        <figcaption className="mt-3 space-y-1.5 text-center font-mono text-2xs text-ink-faint">
+        <figcaption className="mt-3 space-y-1.5 text-center font-mono text-2xs text-faint">
           <div className="flex items-center justify-center gap-4">
             <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2 w-2 rounded-full border border-jade" /> underclaimed
+              <span className="inline-block h-2 w-2 rounded-full border border-gain" /> underclaimed
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2 w-2 rounded-full border border-vermilion" /> overclaimed
+              <span className="inline-block h-2 w-2 rounded-full border border-loss" /> overclaimed
             </span>
           </div>
-          <div className="text-ink-ghost">bubble size = calls in bucket</div>
+          <div className="text-ghost">bubble size = calls in bucket</div>
         </figcaption>
       )}
     </figure>

@@ -1,6 +1,8 @@
 <div align="center">
 
-# Skin in the Game
+# Skin
+
+*skin in the game*
 
 **An AI analyst that has to bet its own money on every call it makes.**
 
@@ -77,12 +79,21 @@ Every number on the dashboard traces back to a settled on-chain position.
 
 ## What it looks like
 
-[![The record](docs/record.png)](https://skin-in-the-game-five.vercel.app)
+[![The console](docs/record.png)](https://skin-in-the-game-five.vercel.app)
+
+The dashboard is not a report you scroll — it is the agent's loop with a button
+on it. **Run a scan** prices five markets one at a time and says out loud why it
+refuses most of them; **Stake** makes you type the word `stake` before any money
+moves, exactly as the CLI does; **Claim** sweeps the winnings that prediction
+markets do not pay out on their own. Every number in it comes from the `scan`
+block of `record.json`, which the CLI produced by calling the same `formOpinion`
+and `sizeStake` a live run calls — so the demo cannot quietly disagree with the
+tool it is demonstrating.
 
 ### The record
 
 ```
-  SKIN IN THE GAME   ● DEMO  synthetic fixtures — no wallet, no money moved
+  SKIN  skin in the game   ● DEMO  synthetic fixtures — no wallet, no money moved
 
 THE RECORD
 computed from settled positions — the agent does not get a vote
@@ -153,15 +164,15 @@ SCAN
 
 **[skin-in-the-game-five.vercel.app](https://skin-in-the-game-five.vercel.app)**
 
-A static React page rendering the same `record.json` the CLI exports — equity
-curve split at zero, a reliability diagram, the slips, and the ledger. No
-backend: the page reads one file, so what it shows is exactly what
-`skin export` produced. The mode badge in the header is permanent, so a demo
-number can never be mistaken for a live one.
+A React page rendering the same `record.json` the CLI exports — the interactive
+console, then the equity curve split at zero, a reliability diagram, the slips,
+and the ledger. No backend: the page reads one file, so what it shows is exactly
+what `skin export` produced. The mode badge in the header is permanent, so a
+demo number can never be mistaken for a live one.
 
 ![Equity curve and calibration](docs/charts.png)
 
-The equity area is clipped at zero — jade above, vermilion below — because the
+The equity area is clipped at zero — green above, red below — because the
 one question anyone asks of that chart is *"is it above or below the line?"*,
 and that should be answerable from across a room. The reliability diagram plots
 stated confidence against what actually happened; the amber diagonal is perfect
@@ -170,10 +181,10 @@ outlier cannot be mistaken for a trend.
 
 ![The slips](docs/slips.png)
 
-Every call is a perforated betting slip carrying the reasoning that produced
-it, stamped with what happened. Both charts are hand-drawn SVG — no charting
-library — because each has a reference line a generic library fights you to
-draw, and the whole page gzips to 53 kB.
+Every call is a betting slip carrying the reasoning that produced it, stamped
+with what happened. Both charts are hand-drawn SVG — no charting library —
+because each has a reference line a generic library fights you to draw, and the
+whole page gzips to 63 kB.
 
 ```bash
 npm run web:dev

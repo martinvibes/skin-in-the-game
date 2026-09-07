@@ -84,9 +84,93 @@ export interface JournalEntry {
   at: string;
 }
 
+// ---------------------------------------------------------------------------
+// The scan trace — one real CLI run, recorded step by step
+// ---------------------------------------------------------------------------
+
+/**
+ * Why the agent did not bet, in its own vocabulary. `no-model` is the analyst
+ * declining to form a view at all; the rest come from the sizing gate.
+ */
+export type Verdict =
+  | 'staked'
+  | 'no-model'
+  | 'no-price'
+  | 'no-edge'
+  | 'conviction-bounds'
+  | 'below-minimum'
+  | 'budget-exhausted';
+
+export interface Sizing {
+  p: number;
+  price: number;
+  edge: number;
+  odds: number;
+  kellyFull: number;
+  kellyApplied: number;
+  stakeUsdt: number;
+  bindingConstraint: 'kelly' | 'per-call-cap' | 'budget-remaining' | 'wallet-daily-limit';
+}
+
+export interface ScanStep {
+  question: string;
+  marketTopicId: string;
+  endDate?: string;
+  verdict: Verdict;
+  detail: string | null;
+  /** Absent when the analyst never got as far as an observation. */
+  symbol?: string;
+  spot?: number;
+  annualVol?: number;
+  samples?: number;
+  interval?: string;
+  rail?: string;
+  side?: Side;
+  tokenId?: string;
+  conviction?: number;
+  marketPrice?: number;
+  edge?: number;
+  thesis?: string;
+  analyst?: string;
+  sizing?: Sizing;
+}
+
+export interface ScanTrace {
+  bankroll: number;
+  runCap: number;
+  perCallCap: number;
+  minimumOrder: number;
+  kellyFraction: number;
+  walletDailyRemaining: number | null;
+  rail: string;
+  totalStaked: number;
+  steps: ScanStep[];
+}
+
+/** One line of plain English for each verdict, used by the console. */
+export const VERDICT_COPY: Record<Verdict, { label: string; blurb: string }> = {
+  staked: { label: 'clears', blurb: 'Real edge, and quarter-Kelly sizes above the venue minimum.' },
+  'no-model': { label: 'no model', blurb: 'Not a directional price question this model has a method for.' },
+  'no-price': { label: 'no price', blurb: 'No last-trade price to measure an edge against.' },
+  'no-edge': { label: 'no edge', blurb: 'The model agrees with the market. Nothing to bet on.' },
+  'conviction-bounds': {
+    label: 'out of bounds',
+    blurb: 'Past ~98% the model\'s own error exceeds the edge it is claiming.',
+  },
+  'below-minimum': {
+    label: 'too small',
+    blurb: 'Real edge, but the correct stake is under the venue minimum. Not rounded up.',
+  },
+  'budget-exhausted': {
+    label: 'no budget',
+    blurb: 'The run cap or the wallet\'s daily limit is already spent.',
+  },
+};
+
 export interface Payload {
   generatedAt: string;
   mode: Mode;
+  scan: ScanTrace;
   record: TrackRecord;
   settled: SettledCall[];
   open: OpenPosition[];
