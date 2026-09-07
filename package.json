@@ -1,0 +1,38 @@
+{
+  "name": "skin-in-the-game",
+  "version": "1.0.0",
+  "description": "An AI analyst that has to bet its own money on every call it makes. Built on Binance Agent OS.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "skin": "./dist/cli/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli/index.ts",
+    "skin": "tsx src/cli/index.ts",
+    "test": "node --test --experimental-strip-types test/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "web:dev": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build"
+  },
+  "keywords": [
+    "binance",
+    "agent-os",
+    "agentic-wallet",
+    "prediction-markets",
+    "ai-agent",
+    "mcp"
+  ],
+  "dependencies": {
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
