@@ -1,0 +1,67 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  cli:
+    name: cli — typecheck, test, smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+      # Demo mode must work on a clean machine with no wallet, no network and
+      # no journal in $HOME. If any of these need one, the demo path is lying.
+      - name: smoke — every command in demo mode
+        run: |
+          npm run skin -- record --demo
+          npm run skin -- scan --demo
+          npm run skin -- positions --demo
+          npm run skin -- stake --demo --yes
+          npm run skin -- claim --demo --yes
+          npm run skin -- scan --demo --mcp-data fixtures/klines.example.json
+
+      # The committed dashboard payload must be reproducible from the fixtures
+      # alone. If this diff is non-empty, something is reading the operator's
+      # machine instead of the demo data.
+      - name: export is reproducible
+        run: |
+          npm run skin -- export --demo --out /tmp/record.json
+          node -e "
+            const a = require('./web/public/record.json');
+            const b = require('/tmp/record.json');
+            const strip = (o) => { const { generatedAt, ...rest } = o; return rest; };
+            const norm = (o) => JSON.stringify(strip(o), (k, v) =>
+              k === 'at' || k === 'endDate' || k === 'settledAt' ? '<time>' : v);
+            if (norm(a) !== norm(b)) {
+              console.error('web/public/record.json is stale — run: npm run skin -- export --demo --out web/public/record.json');
+              process.exit(1);
+            }
+            console.log('record.json is up to date');
+          "
+
+  web:
+    name: web — typecheck and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npx tsc -p tsconfig.json --noEmit
+        working-directory: web
+      - run: npm run build
+        working-directory: web

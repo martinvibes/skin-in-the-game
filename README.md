@@ -12,6 +12,7 @@ It is settled positions on Binance prediction markets, scored with a rule it can
 [![Binance Agent OS](https://img.shields.io/badge/Binance-Agent%20OS-F0B90B?style=flat-square)](https://agent.binance.com)
 [![Agentic Wallet](https://img.shields.io/badge/Agentic%20Wallet-baw-F0B90B?style=flat-square)](https://github.com/binance/binance-skills-hub)
 [![MCP Server](https://img.shields.io/badge/MCP-agent.binance.com-5FD693?style=flat-square)](https://agent.binance.com/mcp/agentic)
+[![ci](https://img.shields.io/github/actions/workflow/status/martinvibes/skin-in-the-game/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/martinvibes/skin-in-the-game/actions)
 [![tests](https://img.shields.io/badge/tests-49%20passing-5FD693?style=flat-square)](test/math.test.ts)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square)](tsconfig.json)
 [![license](https://img.shields.io/badge/license-MIT-EFE8DA?style=flat-square)](LICENSE)
@@ -61,6 +62,7 @@ Every number on the dashboard traces back to a settled on-chain position.
 - [What it looks like](#what-it-looks-like)
 - [Quick start](#quick-start)
 - [Binance Agent OS surfaces used](#binance-agent-os-surfaces-used)
+  - [Using the MCP Server](#using-the-mcp-server)
 - [Why it refuses](#why-it-refuses)
 - [How the model works](#how-the-model-works)
 - [Architecture](#architecture)
@@ -216,13 +218,61 @@ loudly rather than silently pretending.
 | Surface | How this project uses it |
 |---|---|
 | **Agentic Wallet (`baw`)** | The entire trading path. `prediction market list / detail / last-trade-price` to read markets, `prediction trade place-order` to stake, `prediction trade redeem` to claim, `prediction position list --tab ONGOING\|PENDING_CLAIM` and `settled-history` to build the record, `wallet balance` for the bankroll. See [`src/adapters/baw.ts`](src/adapters/baw.ts). |
-| **Binance MCP Server** | Market data for the pricing model. An MCP-authenticated agent fetches klines and hands them over with `--mcp-data`, so volatility is computed under the user's own Agent OS session. See [`src/adapters/marketdata.ts`](src/adapters/marketdata.ts). |
+| **Binance MCP Server** | Market data for the pricing model. An MCP-authenticated agent fetches klines and hands them over with `--mcp-data`, so volatility is computed under the user's own Agent OS session. See [`src/adapters/marketdata.ts`](src/adapters/marketdata.ts) and [the walk-through below](#using-the-mcp-server). |
 | **Skills Hub format** | [`skill/SKILL.md`](skill/SKILL.md) is a publishable skill in the Hub's frontmatter format, with a `references/` split. It is what turns the CLI into an agent workflow: a policy the agent has to follow, not just a binary it can call. |
 | **MPC Wallet limits** | The wallet's own daily spend limit is read and treated as a hard ceiling on sizing — the agent is *structurally* unable to exceed a boundary the human set in the Binance app. |
 
 The wallet's daily limit as a sizing input is the part worth pausing on. Most
 agent projects treat wallet limits as an error to handle. Here it is one of the
 four terms in the position-sizing minimum, on equal footing with Kelly.
+
+### Using the MCP Server
+
+Connect it once:
+
+```bash
+claude mcp add binance-mcp-server --transport http https://agent.binance.com/mcp/agentic
+```
+
+Then the agent fetches candles under its own authenticated session, writes them
+to a file, and hands the path over:
+
+```json
+{
+  "BTCUSDT": { "interval": "1m", "closes": [109380.2, 109412.5, "…200 closes"] },
+  "ETHUSDT": { "interval": "1m", "closes": ["…"] }
+}
+```
+
+```bash
+skin scan --mcp-data ./klines.json
+```
+
+A committed fixture lets you exercise that path right now, with no MCP session
+and no network:
+
+```bash
+npm run skin -- scan --demo --mcp-data fixtures/klines.example.json
+```
+
+```
+  pass      BTC Up or Down — 5 min                    50% vs 50% · no-edge
+  BET       BTC above $109,800 — 1 h                  73% vs 48% · $1.18
+  BET       ETH above $4,140 — 15 min                 96% vs 70% · $1.50
+  pass      SOL above $204 — 1 h                      50% vs 42% · below-minimum
+  pass      BNB above $872 — 4 h                      50% vs 48% · no-edge
+```
+
+Two of those markets have a strike sitting exactly on spot, and the model
+prices both at exactly 50% — the cheapest available check that the lognormal is
+wired up correctly. At the money, over any horizon, a zero-drift walk is a coin
+flip.
+
+Without `--mcp-data` the CLI falls back to Binance's public market-data REST
+endpoint, which needs no credentials. Same arithmetic either way; the MCP path
+is the one that runs inside the user's Agent OS session. It tries four hosts in
+order, including `data-api.binance.vision`, because `api.binance.com` does not
+resolve from every country this was developed in.
 
 ---
 
@@ -356,6 +406,7 @@ skill/
   references/            command surface + model derivations
 
 web/                     Vite + React dashboard ("Ledger Noir")
+fixtures/                a klines payload for exercising the --mcp-data path
 test/math.test.ts        49 tests over the pure engine
 ```
 
@@ -414,6 +465,12 @@ The tests cover the mathematics, not the plumbing — `erf` against known values
 `Φ` symmetry, Kelly against hand-computed cases, the zero-at-`p=c` property,
 which ceiling binds in each regime, Brier against textbook examples, the
 `null`-not-`0` rule, calibration bucketing, and equity accumulation.
+
+[CI](.github/workflows/ci.yml) runs all of that on every push, plus a smoke test
+that executes every command in demo mode on a clean machine — no wallet, no
+network, no journal in `$HOME`. It also re-exports `web/public/record.json` and
+fails if it differs from the committed copy, so the dashboard payload can never
+quietly drift from the fixtures that are supposed to produce it.
 
 One of them caught a real bug: `parseClaim('BTC Up or Down — 5 min')` returned
 `'below'`, because the `below` pattern was tested first and matched the word
