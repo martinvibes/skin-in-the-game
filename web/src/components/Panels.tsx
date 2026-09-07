@@ -20,33 +20,6 @@ import {
 
 // ---------------------------------------------------------------------------
 
-export function Section({
-  eyebrow,
-  title,
-  lede,
-  children,
-  id,
-}: {
-  eyebrow?: string;
-  title: string;
-  lede?: ReactNode;
-  children: ReactNode;
-  id?: string;
-}) {
-  return (
-    <section id={id} className="py-8 md:py-10">
-      <div className="mb-6 max-w-2xl">
-        {eyebrow && <p className="label mb-2.5">{eyebrow}</p>}
-        <h2 className="font-display text-2xl font-semibold tracking-tight text-cream md:text-3xl">
-          {title}
-        </h2>
-        {lede && <p className="mt-2.5 text-[15px] leading-relaxed text-muted">{lede}</p>}
-      </div>
-      {children}
-    </section>
-  );
-}
-
 export function Stat({
   label,
   value,
@@ -59,7 +32,7 @@ export function Stat({
   tone?: string;
 }) {
   return (
-    <div className="panel px-5 py-5">
+    <div className="panel h-full px-5 py-5">
       <p className="label mb-2.5">{label}</p>
       <p data-numeric className={`font-mono text-3xl font-medium leading-none ${tone}`}>
         {value}

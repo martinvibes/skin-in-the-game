@@ -191,11 +191,11 @@ export function Console({
 function Header({ phase }: { phase: Phase }) {
   const live = phase === 'scanning';
   return (
-    <div className="flex items-center gap-3 border-b border-line px-4 py-3 md:px-6">
+    <div className="flex items-center gap-3 border-b px-4 py-3 hair md:px-6">
       <div className="flex gap-1.5">
-        <Dot className="bg-[#2A3037]" />
-        <Dot className="bg-[#2A3037]" />
-        <Dot className={live ? 'bg-teal animate-pulse-soft' : 'bg-[#2A3037]'} />
+        <Dot className="bg-ghost" />
+        <Dot className="bg-ghost" />
+        <Dot className={live ? 'bg-teal animate-pulse-soft' : 'bg-ghost'} />
       </div>
       <span className="font-mono text-2xs tracking-[0.14em] text-faint">
         skin — {phase === 'idle' ? 'ready' : phase === 'scanning' ? 'running' : 'session'}
@@ -323,7 +323,7 @@ function StepRow({ step }: { step: ScanStep }) {
 function Summary({ scan, cleared }: { scan: ScanTrace; cleared: number }) {
   const passed = scan.steps.length - cleared;
   return (
-    <div className="mt-3 rounded-card border border-line bg-raised px-4 py-3">
+    <div className="mt-3 rounded-card border bg-raised px-4 py-3 hair">
       <p className="font-mono text-[13px] text-cream">
         {cleared} of {scan.steps.length} markets cleared ·{' '}
         <span className="text-money">{usd(scan.totalStaked)}</span> would be committed
@@ -343,7 +343,7 @@ function Receipt({ step, settled }: { step: ScanStep; settled: boolean }) {
   const z = step.sizing;
   if (!z) return null;
   return (
-    <div className="animate-rise rounded-card border border-line bg-raised p-4">
+    <div className="animate-rise rounded-card border bg-raised p-4 hair">
       <div className="mb-3 flex items-start justify-between gap-3">
         <p className="font-display text-sm leading-snug text-cream">{step.question}</p>
         <span
@@ -355,7 +355,7 @@ function Receipt({ step, settled }: { step: ScanStep; settled: boolean }) {
         </span>
       </div>
 
-      <dl className="grid grid-cols-2 gap-x-8 gap-y-2 border-y border-line py-3 font-mono text-2xs">
+      <dl className="grid grid-cols-2 gap-x-8 gap-y-2 border-y py-3 font-mono hair text-2xs">
         <Row k="side" v={step.side ?? '—'} />
         <Row k="agent says" v={pct(z.p, 1)} tone="text-cream" />
         <Row k="market says" v={pct(z.price, 1)} />
@@ -373,7 +373,7 @@ function Receipt({ step, settled }: { step: ScanStep; settled: boolean }) {
         </span>
       </div>
 
-      <p className="mt-3 border-t border-line pt-3 text-2xs leading-relaxed text-faint">
+      <p className="mt-3 border-t pt-3 text-2xs hair leading-relaxed text-faint">
         {step.thesis}
       </p>
     </div>
@@ -444,7 +444,7 @@ function Controls({
   onReset: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 border-t border-line bg-[#0C0E10] px-4 py-3.5 md:px-6">
+    <div className="flex flex-wrap items-center gap-3 border-t bg-raised px-4 py-3.5 hair md:px-6">
       {/* No button here while idle: the empty console already carries a large
           one, and two identical primaries on screen make neither read as the
           next action. */}
@@ -488,7 +488,7 @@ function Controls({
             placeholder="stake"
             aria-invalid={rejected}
             aria-describedby={rejected ? 'confirm-error' : undefined}
-            className={`w-36 rounded-full border bg-void px-4 py-2 font-mono text-sm text-cream
+            className={`w-36 rounded-[2px] border bg-void px-4 py-2 font-mono text-sm text-cream
               placeholder:text-ghost focus:outline-none ${
                 rejected ? 'border-loss' : 'border-line-bright focus:border-teal'
               }`}

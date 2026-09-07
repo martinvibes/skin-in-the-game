@@ -82,12 +82,12 @@ export function EquityCurve({ points }: { points: EquityPoint[] }) {
             <rect x={0} y={zeroY} width={W} height={H - zeroY} />
           </clipPath>
           <linearGradient id={`${gid}-up`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#4ADE80" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="#4ADE80" stopOpacity="0" />
+            <stop offset="0%" stopColor="rgb(var(--c-gain))" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="rgb(var(--c-gain))" stopOpacity="0" />
           </linearGradient>
           <linearGradient id={`${gid}-down`} x1="0" y1="1" x2="0" y2="0">
-            <stop offset="0%" stopColor="#FB7185" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="#FB7185" stopOpacity="0" />
+            <stop offset="0%" stopColor="rgb(var(--c-loss))" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="rgb(var(--c-loss))" stopOpacity="0" />
           </linearGradient>
         </defs>
 
@@ -99,7 +99,7 @@ export function EquityCurve({ points }: { points: EquityPoint[] }) {
               x2={W - PAD.right}
               y1={y(v)}
               y2={y(v)}
-              stroke="#1D2125"
+              stroke="rgb(var(--c-line) / 0.20)"
               strokeWidth="1"
             />
             <text
@@ -123,7 +123,7 @@ export function EquityCurve({ points }: { points: EquityPoint[] }) {
           x2={W - PAD.right}
           y1={zeroY}
           y2={zeroY}
-          stroke="#626A71"
+          stroke="rgb(var(--c-faint))"
           strokeWidth="1"
           strokeDasharray="3 3"
         />
@@ -131,7 +131,7 @@ export function EquityCurve({ points }: { points: EquityPoint[] }) {
         <path
           d={line}
           fill="none"
-          stroke="#F4F1EA"
+          stroke="rgb(var(--c-ink))"
           strokeWidth="1.75"
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -145,8 +145,8 @@ export function EquityCurve({ points }: { points: EquityPoint[] }) {
             cx={x(i)}
             cy={y(p.cumulativePnl)}
             r={3}
-            fill={p.outcome === 'WON' ? '#4ADE80' : '#FB7185'}
-            stroke="#0E1012"
+            fill={p.outcome === 'WON' ? 'rgb(var(--c-gain))' : 'rgb(var(--c-loss))'}
+            stroke="rgb(var(--c-panel))"
             strokeWidth="1.5"
           >
             <title>{`#${p.index} ${p.outcome} · ${usd(p.cumulativePnl, true)} · ${p.question}`}</title>
@@ -194,12 +194,12 @@ export function CalibrationPlot({ bins }: { bins: CalibrationBin[] }) {
         aria-label="Reliability diagram: stated confidence against observed win frequency"
       >
         {/* frame */}
-        <rect x={PAD} y={PAD} width={inner} height={inner} fill="none" stroke="#1D2125" />
+        <rect x={PAD} y={PAD} width={inner} height={inner} fill="none" stroke="rgb(var(--c-line) / 0.20)" />
 
         {[0.25, 0.5, 0.75].map((t) => (
           <g key={t}>
-            <line x1={x(t)} x2={x(t)} y1={PAD} y2={PAD + inner} stroke="#15181B" />
-            <line x1={PAD} x2={PAD + inner} y1={y(t)} y2={y(t)} stroke="#15181B" />
+            <line x1={x(t)} x2={x(t)} y1={PAD} y2={PAD + inner} stroke="rgb(var(--c-line) / 0.10)" />
+            <line x1={PAD} x2={PAD + inner} y1={y(t)} y2={y(t)} stroke="rgb(var(--c-line) / 0.10)" />
           </g>
         ))}
 
@@ -209,7 +209,7 @@ export function CalibrationPlot({ bins }: { bins: CalibrationBin[] }) {
           y1={y(0)}
           x2={x(1)}
           y2={y(1)}
-          stroke="#FBBF24"
+          stroke="rgb(var(--c-accent))"
           strokeWidth="1.25"
           strokeDasharray="4 4"
           opacity={0.7}
@@ -229,7 +229,7 @@ export function CalibrationPlot({ bins }: { bins: CalibrationBin[] }) {
                 y1={y(b.observedRate)}
                 x2={x(b.meanConviction)}
                 y2={y(b.meanConviction)}
-                stroke={over ? '#FB7185' : '#4ADE80'}
+                stroke={over ? 'rgb(var(--c-loss))' : 'rgb(var(--c-gain))'}
                 strokeWidth="1"
                 opacity={0.45}
               />
@@ -238,7 +238,7 @@ export function CalibrationPlot({ bins }: { bins: CalibrationBin[] }) {
                 cy={y(b.observedRate)}
                 r={r}
                 fill={over ? 'rgba(251,113,133,0.20)' : 'rgba(74,222,128,0.20)'}
-                stroke={over ? '#FB7185' : '#4ADE80'}
+                stroke={over ? 'rgb(var(--c-loss))' : 'rgb(var(--c-gain))'}
                 strokeWidth="1.5"
               >
                 <title>
