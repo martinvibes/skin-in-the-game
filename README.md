@@ -77,6 +77,8 @@ Every number on the dashboard traces back to a settled on-chain position.
 
 ## What it looks like
 
+[![The record](docs/record.png)](https://skin-in-the-game-five.vercel.app)
+
 ### The record
 
 ```
@@ -156,6 +158,22 @@ curve split at zero, a reliability diagram, the slips, and the ledger. No
 backend: the page reads one file, so what it shows is exactly what
 `skin export` produced. The mode badge in the header is permanent, so a demo
 number can never be mistaken for a live one.
+
+![Equity curve and calibration](docs/charts.png)
+
+The equity area is clipped at zero — jade above, vermilion below — because the
+one question anyone asks of that chart is *"is it above or below the line?"*,
+and that should be answerable from across a room. The reliability diagram plots
+stated confidence against what actually happened; the amber diagonal is perfect
+honesty, and a bubble's area is the number of calls in that bucket, so a single
+outlier cannot be mistaken for a trend.
+
+![The slips](docs/slips.png)
+
+Every call is a perforated betting slip carrying the reasoning that produced
+it, stamped with what happened. Both charts are hand-drawn SVG — no charting
+library — because each has a reference line a generic library fights you to
+draw, and the whole page gzips to 53 kB.
 
 ```bash
 npm run web:dev
@@ -407,6 +425,7 @@ skill/
 
 web/                     Vite + React dashboard ("Ledger Noir")
 fixtures/                a klines payload for exercising the --mcp-data path
+docs/                    dashboard screenshots used by this README
 test/math.test.ts        49 tests over the pure engine
 ```
 

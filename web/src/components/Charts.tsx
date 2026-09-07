@@ -286,14 +286,19 @@ export function CalibrationPlot({ bins }: { bins: CalibrationBin[] }) {
           No journalled convictions yet — nothing to calibrate.
         </p>
       ) : (
-        <figcaption className="mt-3 flex items-center justify-center gap-4 font-mono text-2xs text-ink-faint">
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-2 rounded-full border border-jade" /> underclaimed
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-2 rounded-full border border-vermilion" /> overclaimed
-          </span>
-          <span className="text-ink-ghost">bubble = calls in bucket</span>
+        // Two rows rather than three inline items: the plot is capped at 320px
+        // wide, and a single row wraps the last label into a ragged three-line
+        // stack at every viewport.
+        <figcaption className="mt-3 space-y-1.5 text-center font-mono text-2xs text-ink-faint">
+          <div className="flex items-center justify-center gap-4">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-2 rounded-full border border-jade" /> underclaimed
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-2 rounded-full border border-vermilion" /> overclaimed
+            </span>
+          </div>
+          <div className="text-ink-ghost">bubble size = calls in bucket</div>
         </figcaption>
       )}
     </figure>
