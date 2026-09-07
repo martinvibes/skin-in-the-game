@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-07T13:37:25.922Z",
+  "generatedAt": "2026-09-07T13:49:44.163Z",
   "mode": "demo",
   "record": {
     "calls": 12,
@@ -46,219 +46,219 @@
         "index": 1,
         "cumulativePnl": 0.85,
         "outcome": "WON",
-        "question": "BTC above $108,000 \u2014 15 min"
+        "question": "BTC above $108,000 — 15 min"
       },
       {
         "index": 2,
         "cumulativePnl": -0.15,
         "outcome": "LOST",
-        "question": "ETH above $4,150 \u2014 15 min"
+        "question": "ETH above $4,150 — 15 min"
       },
       {
         "index": 3,
         "cumulativePnl": 0.67,
         "outcome": "WON",
-        "question": "BTC Up or Down \u2014 5 min"
+        "question": "BTC Up or Down — 5 min"
       },
       {
         "index": 4,
         "cumulativePnl": -0.83,
         "outcome": "LOST",
-        "question": "SOL above $210 \u2014 1 h"
+        "question": "SOL above $210 — 1 h"
       },
       {
         "index": 5,
         "cumulativePnl": 0.01,
         "outcome": "WON",
-        "question": "BTC above $109,500 \u2014 1 h"
+        "question": "BTC above $109,500 — 1 h"
       },
       {
         "index": 6,
         "cumulativePnl": 0.57,
         "outcome": "WON",
-        "question": "BNB above $880 \u2014 15 min"
+        "question": "BNB above $880 — 15 min"
       },
       {
         "index": 7,
         "cumulativePnl": -0.43,
         "outcome": "LOST",
-        "question": "ETH Up or Down \u2014 5 min"
+        "question": "ETH Up or Down — 5 min"
       },
       {
         "index": 8,
         "cumulativePnl": 0.68,
         "outcome": "WON",
-        "question": "BTC above $110,000 \u2014 4 h"
+        "question": "BTC above $110,000 — 4 h"
       },
       {
         "index": 9,
         "cumulativePnl": -0.22,
         "outcome": "LOST",
-        "question": "XRP above $2.90 \u2014 1 h"
+        "question": "XRP above $2.90 — 1 h"
       },
       {
         "index": 10,
         "cumulativePnl": 0.59,
         "outcome": "WON",
-        "question": "BTC Up or Down \u2014 5 min"
+        "question": "BTC Up or Down — 5 min"
       },
       {
         "index": 11,
         "cumulativePnl": -0.71,
         "outcome": "LOST",
-        "question": "ETH above $4,050 \u2014 15 min"
+        "question": "ETH above $4,050 — 15 min"
       },
       {
         "index": 12,
         "cumulativePnl": 0.07,
         "outcome": "WON",
-        "question": "BTC above $107,500 \u2014 15 min"
+        "question": "BTC above $107,500 — 15 min"
       }
     ]
   },
   "settled": [
     {
       "tokenId": "d01",
-      "question": "BTC above $108,000 \u2014 15 min",
+      "question": "BTC above $108,000 — 15 min",
       "side": "YES",
       "outcome": "WON",
       "cost": 1.2,
       "payout": 2.05,
       "pnl": 0.85,
       "conviction": 0.71,
-      "settledAt": "2026-09-05T15:37:25.917Z",
+      "settledAt": "2026-09-05T15:49:44.159Z",
       "claimed": true
     },
     {
       "tokenId": "d02",
-      "question": "ETH above $4,150 \u2014 15 min",
+      "question": "ETH above $4,150 — 15 min",
       "side": "NO",
       "outcome": "LOST",
       "cost": 1,
       "payout": 0,
       "pnl": -1,
       "conviction": 0.66,
-      "settledAt": "2026-09-05T17:37:25.918Z",
+      "settledAt": "2026-09-05T17:49:44.160Z",
       "claimed": false
     },
     {
       "tokenId": "d03",
-      "question": "BTC Up or Down \u2014 5 min",
+      "question": "BTC Up or Down — 5 min",
       "side": "NO",
       "outcome": "WON",
       "cost": 0.9,
       "payout": 1.72,
       "pnl": 0.82,
       "conviction": 0.58,
-      "settledAt": "2026-09-05T20:37:25.918Z",
+      "settledAt": "2026-09-05T20:49:44.160Z",
       "claimed": true
     },
     {
       "tokenId": "d04",
-      "question": "SOL above $210 \u2014 1 h",
+      "question": "SOL above $210 — 1 h",
       "side": "YES",
       "outcome": "LOST",
       "cost": 1.5,
       "payout": 0,
       "pnl": -1.5,
       "conviction": 0.88,
-      "settledAt": "2026-09-05T23:37:25.918Z",
+      "settledAt": "2026-09-05T23:49:44.160Z",
       "claimed": false
     },
     {
       "tokenId": "d05",
-      "question": "BTC above $109,500 \u2014 1 h",
+      "question": "BTC above $109,500 — 1 h",
       "side": "NO",
       "outcome": "WON",
       "cost": 1.1,
       "payout": 1.94,
       "pnl": 0.84,
       "conviction": 0.74,
-      "settledAt": "2026-09-06T04:37:25.918Z",
+      "settledAt": "2026-09-06T04:49:44.160Z",
       "claimed": true
     },
     {
       "tokenId": "d06",
-      "question": "BNB above $880 \u2014 15 min",
+      "question": "BNB above $880 — 15 min",
       "side": "YES",
       "outcome": "WON",
       "cost": 0.8,
       "payout": 1.36,
       "pnl": 0.56,
       "conviction": 0.62,
-      "settledAt": "2026-09-06T08:37:25.918Z",
+      "settledAt": "2026-09-06T08:49:44.160Z",
       "claimed": true
     },
     {
       "tokenId": "d07",
-      "question": "ETH Up or Down \u2014 5 min",
+      "question": "ETH Up or Down — 5 min",
       "side": "YES",
       "outcome": "LOST",
       "cost": 1,
       "payout": 0,
       "pnl": -1,
       "conviction": 0.55,
-      "settledAt": "2026-09-06T12:37:25.918Z",
+      "settledAt": "2026-09-06T12:49:44.160Z",
       "claimed": false
     },
     {
       "tokenId": "d08",
-      "question": "BTC above $110,000 \u2014 4 h",
+      "question": "BTC above $110,000 — 4 h",
       "side": "NO",
       "outcome": "WON",
       "cost": 1.4,
       "payout": 2.51,
       "pnl": 1.11,
       "conviction": 0.79,
-      "settledAt": "2026-09-06T17:37:25.918Z",
+      "settledAt": "2026-09-06T17:49:44.160Z",
       "claimed": true
     },
     {
       "tokenId": "d09",
-      "question": "XRP above $2.90 \u2014 1 h",
+      "question": "XRP above $2.90 — 1 h",
       "side": "YES",
       "outcome": "LOST",
       "cost": 0.9,
       "payout": 0,
       "pnl": -0.9,
       "conviction": 0.61,
-      "settledAt": "2026-09-06T21:37:25.918Z",
+      "settledAt": "2026-09-06T21:49:44.160Z",
       "claimed": false
     },
     {
       "tokenId": "d10",
-      "question": "BTC Up or Down \u2014 5 min",
+      "question": "BTC Up or Down — 5 min",
       "side": "YES",
       "outcome": "WON",
       "cost": 1,
       "payout": 1.81,
       "pnl": 0.81,
       "conviction": 0.57,
-      "settledAt": "2026-09-07T02:37:25.918Z",
+      "settledAt": "2026-09-07T02:49:44.160Z",
       "claimed": false
     },
     {
       "tokenId": "d11",
-      "question": "ETH above $4,050 \u2014 15 min",
+      "question": "ETH above $4,050 — 15 min",
       "side": "NO",
       "outcome": "LOST",
       "cost": 1.3,
       "payout": 0,
       "pnl": -1.3,
       "conviction": 0.69,
-      "settledAt": "2026-09-07T06:37:25.918Z",
+      "settledAt": "2026-09-07T06:49:44.161Z",
       "claimed": false
     },
     {
       "tokenId": "d12",
-      "question": "BTC above $107,500 \u2014 15 min",
+      "question": "BTC above $107,500 — 15 min",
       "side": "YES",
       "outcome": "WON",
       "cost": 1.1,
       "payout": 1.88,
       "pnl": 0.78,
       "conviction": 0.73,
-      "settledAt": "2026-09-07T10:37:25.918Z",
+      "settledAt": "2026-09-07T10:49:44.161Z",
       "claimed": false
     }
   ],
@@ -266,38 +266,38 @@
     {
       "tokenId": "d13",
       "marketTopicId": "m-1041",
-      "question": "BTC above $111,000 \u2014 1 h",
+      "question": "BTC above $111,000 — 1 h",
       "side": "NO",
       "shares": 2.31,
       "cost": 1.15,
       "avgPrice": 0.498,
       "conviction": 0.68,
-      "endDate": "2026-09-07T14:14:25.918Z"
+      "endDate": "2026-09-07T14:26:44.161Z"
     },
     {
       "tokenId": "d14",
       "marketTopicId": "m-1042",
-      "question": "ETH Up or Down \u2014 15 min",
+      "question": "ETH Up or Down — 15 min",
       "side": "YES",
       "shares": 1.94,
       "cost": 0.95,
       "avgPrice": 0.49,
       "conviction": 0.59,
-      "endDate": "2026-09-07T13:46:25.918Z"
+      "endDate": "2026-09-07T13:58:44.161Z"
     }
   ],
   "unclaimed": [
     {
       "tokenId": "d10",
-      "question": "BTC Up or Down \u2014 5 min",
+      "question": "BTC Up or Down — 5 min",
       "payout": 1.81,
-      "settledAt": "2026-09-07T02:37:25.918Z"
+      "settledAt": "2026-09-07T02:49:44.161Z"
     },
     {
       "tokenId": "d12",
-      "question": "BTC above $107,500 \u2014 15 min",
+      "question": "BTC above $107,500 — 15 min",
       "payout": 1.88,
-      "settledAt": "2026-09-07T10:37:25.918Z"
+      "settledAt": "2026-09-07T10:49:44.161Z"
     }
   ],
   "journal": [
@@ -306,50 +306,70 @@
       "conviction": 0.79,
       "marketPrice": 0.63,
       "stake": 1.4,
-      "question": "BTC above $110,000 \u2014 4 h",
+      "question": "BTC above $110,000 — 4 h",
       "thesis": "BTC spot $109,240, realized vol 53% (200 x 1m candles). Zero-drift lognormal over 4 h puts P(BTC above $110,000) at 21.3%; market priced the NO token at 56.0%.",
       "analyst": "quant/lognormal",
-      "at": "2026-09-06T17:37:25.918Z"
+      "at": "2026-09-06T09:49:44.161Z"
     },
     {
       "tokenId": "d09",
       "conviction": 0.61,
       "marketPrice": 0.45,
       "stake": 0.9,
-      "question": "XRP above $2.90 \u2014 1 h",
+      "question": "XRP above $2.90 — 1 h",
       "thesis": "XRP spot $2.88, realized vol 71% (200 x 1m candles). Zero-drift lognormal over 1 h puts P(XRP above $2.90) at 39.4%; market priced the YES token at 33.0%.",
       "analyst": "quant/lognormal",
-      "at": "2026-09-06T21:37:25.918Z"
+      "at": "2026-09-06T13:49:44.161Z"
     },
     {
       "tokenId": "d10",
       "conviction": 0.57,
       "marketPrice": 0.41,
       "stake": 1,
-      "question": "BTC Up or Down \u2014 5 min",
+      "question": "BTC Up or Down — 5 min",
       "thesis": "BTC spot $108,930, realized vol 51% (200 x 1m candles). Zero-drift lognormal over 5 min puts P(BTC up) at 49.9%; market priced the YES token at 43.0%.",
       "analyst": "quant/lognormal",
-      "at": "2026-09-07T02:37:25.918Z"
+      "at": "2026-09-06T18:49:44.161Z"
     },
     {
       "tokenId": "d11",
       "conviction": 0.69,
       "marketPrice": 0.53,
       "stake": 1.3,
-      "question": "ETH above $4,050 \u2014 15 min",
+      "question": "ETH above $4,050 — 15 min",
       "thesis": "ETH spot $4,061, realized vol 63% (200 x 1m candles). Zero-drift lognormal over 15 min puts P(ETH above $4,050) at 61.2%; market priced the NO token at 31.0%.",
       "analyst": "quant/lognormal",
-      "at": "2026-09-07T06:37:25.918Z"
+      "at": "2026-09-06T22:49:44.161Z"
     },
     {
       "tokenId": "d12",
       "conviction": 0.73,
       "marketPrice": 0.57,
       "stake": 1.1,
-      "question": "BTC above $107,500 \u2014 15 min",
+      "question": "BTC above $107,500 — 15 min",
       "thesis": "BTC spot $107,180, realized vol 49% (200 x 1m candles). Zero-drift lognormal over 15 min puts P(BTC above $107,500) at 27.4%; market priced the YES token at 58.0%.",
       "analyst": "quant/lognormal",
-      "at": "2026-09-07T10:37:25.918Z"
+      "at": "2026-09-07T02:49:44.161Z"
+    },
+    {
+      "tokenId": "d13",
+      "conviction": 0.68,
+      "marketPrice": 0.5,
+      "stake": 1.15,
+      "question": "BTC above $111,000 — 1 h",
+      "thesis": "BTC spot $109,420, realized vol 52% (200 x 1m candles). Zero-drift lognormal over 1 h puts P(BTC above $111,000) at 31.6%; market prices the NO token at 49.8%.",
+      "analyst": "quant/lognormal",
+      "at": "2026-09-07T13:13:44.161Z"
+    },
+    {
+      "tokenId": "d14",
+      "conviction": 0.59,
+      "marketPrice": 0.49,
+      "stake": 0.95,
+      "question": "ETH Up or Down — 15 min",
+      "thesis": "ETH spot $4,118, realized vol 61% (200 x 1m candles). Zero-drift lognormal over 15 min puts P(ETH up) at 58.8%; market prices the YES token at 49.0%.",
+      "analyst": "quant/lognormal",
+      "at": "2026-09-07T13:37:44.161Z"
     }
   ],
   "wallet": {

@@ -274,7 +274,7 @@ export default function App() {
         <Section
           eyebrow="mechanism"
           title="How a call becomes money."
-          lede="Five gates. Most markets do not clear them, and that is the system working."
+          lede="Five stages, and a market can be refused at any of them. Most are — that is the system working, not a bug in it."
         >
           <ol className="grid gap-3 md:grid-cols-5">
             {[

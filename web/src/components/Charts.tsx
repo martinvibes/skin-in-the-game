@@ -60,8 +60,10 @@ export function EquityCurve({ points }: { points: EquityPoint[] }) {
 
   const zeroY = y(0);
   const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i)} ${y(p.cumulativePnl)}`).join(' ');
-  const areaTo = (clipAbove: boolean) =>
-    `${line} L ${x(points.length - 1)} ${zeroY} L ${x(0)} ${zeroY} Z` + (clipAbove ? '' : '');
+  // One closed path, drawn twice under two clip rects. Closing it back along the
+  // zero line rather than the axis is what lets the same geometry serve both
+  // fills: whichever side of zero is clipped away simply contributes nothing.
+  const area = `${line} L ${x(points.length - 1)} ${zeroY} L ${x(0)} ${zeroY} Z`;
 
   return (
     <figure className="w-full">
@@ -112,8 +114,8 @@ export function EquityCurve({ points }: { points: EquityPoint[] }) {
           </g>
         ))}
 
-        <path d={areaTo(true)} fill={`url(#${gid}-up)`} clipPath={`url(#${gid}-above)`} />
-        <path d={areaTo(false)} fill={`url(#${gid}-down)`} clipPath={`url(#${gid}-below)`} />
+        <path d={area} fill={`url(#${gid}-up)`} clipPath={`url(#${gid}-above)`} />
+        <path d={area} fill={`url(#${gid}-down)`} clipPath={`url(#${gid}-below)`} />
 
         {/* Zero: the only line that matters. */}
         <line

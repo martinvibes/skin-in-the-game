@@ -133,8 +133,13 @@ export interface Sizing {
   kellyApplied: number;
   /** Final stake in USDT, rounded to the venue's precision. */
   stakeUsdt: number;
-  /** Which constraint ended up binding — useful for explaining the number. */
-  bindingConstraint: 'kelly' | 'per-call-cap' | 'budget-remaining' | 'minimum';
+  /**
+   * Which of the four ceilings actually bound. The wallet's daily limit is
+   * kept distinct from the run budget because they mean different things to
+   * the operator: one is a flag they passed, the other is a limit they set in
+   * the Binance app and that the agent has no way to raise.
+   */
+  bindingConstraint: 'kelly' | 'per-call-cap' | 'budget-remaining' | 'wallet-daily-limit';
 }
 
 // ---------------------------------------------------------------------------

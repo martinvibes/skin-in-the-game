@@ -120,13 +120,21 @@ describe('stake sizing', () => {
   test("never exceeds the wallet's Binance-enforced daily remainder", () => {
     const r = sizeStake(0.95, 0.2, 10_000, budget({ perCallCap: 50, walletDailyRemaining: 2 }));
     assert.equal(r.ok, true);
-    if (r.ok) assert.ok(r.sizing.stakeUsdt <= 2);
+    if (r.ok) {
+      assert.ok(r.sizing.stakeUsdt <= 2);
+      // Reported separately from the run budget: the operator can raise one by
+      // passing a flag and the other only from the Binance app.
+      assert.equal(r.sizing.bindingConstraint, 'wallet-daily-limit');
+    }
   });
 
   test('respects budget already spent within a run', () => {
     const r = sizeStake(0.95, 0.2, 10_000, budget({ perCallCap: 50, runCap: 10, spent: 8 }));
     assert.equal(r.ok, true);
-    if (r.ok) assert.ok(r.sizing.stakeUsdt <= 2);
+    if (r.ok) {
+      assert.ok(r.sizing.stakeUsdt <= 2);
+      assert.equal(r.sizing.bindingConstraint, 'budget-remaining');
+    }
   });
 
   test('declines rather than rounding up to reach the venue minimum', () => {

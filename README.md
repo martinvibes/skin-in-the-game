@@ -59,7 +59,7 @@ Every number on the dashboard traces back to a settled on-chain position.
 - [What it looks like](#what-it-looks-like)
 - [Quick start](#quick-start)
 - [Binance Agent OS surfaces used](#binance-agent-os-surfaces-used)
-- [The five gates](#the-five-gates)
+- [Why it refuses](#why-it-refuses)
 - [How the model works](#how-the-model-works)
 - [Architecture](#architecture)
 - [Repo layout](#repo-layout)
@@ -219,11 +219,12 @@ four terms in the position-sizing minimum, on equal footing with Kelly.
 
 ---
 
-## The five gates
+## Why it refuses
 
-Money moves only if a call clears all five. Each gate has one job.
+Money moves only if a call survives all five checks. Each one has a single job,
+and each produces a named verdict rather than a silent skip.
 
-| # | Gate | Rejects |
+| # | Check | Rejects |
 |---|---|---|
 | 1 | **Model** | A market whose title cannot be parsed, or with too little price history to measure volatility → `no-price` |
 | 2 | **Edge** | Disagreement with the market smaller than 4 points → `no-edge` |

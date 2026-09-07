@@ -30,9 +30,10 @@
  *
  * ## Why a fraction of Kelly
  *
- * Full Kelly maximises long-run growth only if `p` is exactly right. An LLM's
- * probabilities are not exactly right, and Kelly is famously punishing when the
- * input is overconfident. We apply a fraction (default one quarter), which
+ * Full Kelly maximises long-run growth only if `p` is exactly right, and `p` is
+ * a model output — a volatility estimate pushed through a lognormal, which is
+ * an approximation of an approximation. Kelly is famously punishing when its
+ * input is overconfident: the drawdowns compound faster than the growth does. We apply a fraction (default one quarter), which
  * gives up a little growth for a large reduction in variance and in the damage
  * done by miscalibration. On top of that sit two hard caps that do not care
  * about the maths at all — a per-call cap and the wallet's own daily limit.
@@ -151,7 +152,7 @@ export function sizeStake(
     { value: runHeadroom, name: 'budget-remaining' },
   ];
   if (budget.walletDailyRemaining !== null) {
-    ceilings.push({ value: budget.walletDailyRemaining, name: 'budget-remaining' });
+    ceilings.push({ value: budget.walletDailyRemaining, name: 'wallet-daily-limit' });
   }
 
   let binding = ceilings[0]!;
@@ -163,7 +164,7 @@ export function sizeStake(
     return {
       ok: false,
       reason: 'below-minimum',
-      detail: `Quarter-Kelly on a ${pct(edge)} edge sizes to ${usd(stakeUsdt)}, below the ${usd(budget.minimumOrder)} venue minimum. Betting more than the maths justifies to clear the floor would be the opposite of the point.`,
+      detail: `${kellyLabel(budget.kellyFraction)} on a ${pct(edge)} edge sizes to ${usd(stakeUsdt)}, below the ${usd(budget.minimumOrder)} venue minimum. Betting more than the maths justifies to clear the floor would be the opposite of the point.`,
     };
   }
 
@@ -187,6 +188,14 @@ export function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
+
+/** "Quarter-Kelly", "half-Kelly", or the bare fraction for anything unusual. */
+function kellyLabel(fraction: number): string {
+  if (fraction === 0.25) return 'Quarter-Kelly';
+  if (fraction === 0.5) return 'Half-Kelly';
+  if (fraction === 1) return 'Full Kelly';
+  return `${(fraction * 100).toFixed(0)}% of Kelly`;
+}
 
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 const usd = (n: number) => `$${n.toFixed(2)}`;

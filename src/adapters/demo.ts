@@ -28,6 +28,9 @@ import type {
   UnclaimedWin,
 } from '../domain/types.js';
 import type { PredictionClient, Quote, QuoteInput } from './baw.js';
+// Type-only, and only so the bundled journal below is checked against the same
+// shape the real writer produces. No runtime dependency on the engine.
+import type { JournalEntry } from '../engine/journal.js';
 
 const H = 3_600_000;
 const now = () => Date.now();
@@ -60,6 +63,99 @@ const SETTLED: SettledCall[] = [
 const UNCLAIMED: UnclaimedWin[] = [
   { tokenId: 'd10', question: 'BTC Up or Down — 5 min', payout: 1.81, settledAt: ago(11) },
   { tokenId: 'd12', question: 'BTC above $107,500 — 15 min', payout: 1.88, settledAt: ago(3) },
+];
+
+/**
+ * The conviction journal the demo ships with.
+ *
+ * Bundled rather than read from `~/.skin/journal.jsonl` so that
+ * `skin export --demo` produces the same file on any machine. Reading the real
+ * journal in demo mode would make the committed dashboard payload depend on
+ * whatever the operator happened to have staked that week — and would leak it
+ * into a public repo.
+ *
+ * Five settled calls and the two still open, so both stamps appear on the
+ * dashboard. The convictions match the settled fixtures exactly; if they drifted
+ * apart the calibration plot would be measuring nothing.
+ */
+export const DEMO_JOURNAL: JournalEntry[] = [
+  {
+    tokenId: 'd08',
+    conviction: 0.79,
+    marketPrice: 0.63,
+    stake: 1.4,
+    question: 'BTC above $110,000 — 4 h',
+    thesis:
+      'BTC spot $109,240, realized vol 53% (200 x 1m candles). Zero-drift lognormal over 4 h puts P(BTC above $110,000) at 21.3%; market priced the NO token at 56.0%.',
+    analyst: 'quant/lognormal',
+    at: ago(28),
+  },
+  {
+    tokenId: 'd09',
+    conviction: 0.61,
+    marketPrice: 0.45,
+    stake: 0.9,
+    question: 'XRP above $2.90 — 1 h',
+    thesis:
+      'XRP spot $2.88, realized vol 71% (200 x 1m candles). Zero-drift lognormal over 1 h puts P(XRP above $2.90) at 39.4%; market priced the YES token at 33.0%.',
+    analyst: 'quant/lognormal',
+    at: ago(24),
+  },
+  {
+    tokenId: 'd10',
+    conviction: 0.57,
+    marketPrice: 0.41,
+    stake: 1,
+    question: 'BTC Up or Down — 5 min',
+    thesis:
+      'BTC spot $108,930, realized vol 51% (200 x 1m candles). Zero-drift lognormal over 5 min puts P(BTC up) at 49.9%; market priced the YES token at 43.0%.',
+    analyst: 'quant/lognormal',
+    at: ago(19),
+  },
+  {
+    tokenId: 'd11',
+    conviction: 0.69,
+    marketPrice: 0.53,
+    stake: 1.3,
+    question: 'ETH above $4,050 — 15 min',
+    thesis:
+      'ETH spot $4,061, realized vol 63% (200 x 1m candles). Zero-drift lognormal over 15 min puts P(ETH above $4,050) at 61.2%; market priced the NO token at 31.0%.',
+    analyst: 'quant/lognormal',
+    at: ago(15),
+  },
+  {
+    tokenId: 'd12',
+    conviction: 0.73,
+    marketPrice: 0.57,
+    stake: 1.1,
+    question: 'BTC above $107,500 — 15 min',
+    thesis:
+      'BTC spot $107,180, realized vol 49% (200 x 1m candles). Zero-drift lognormal over 15 min puts P(BTC above $107,500) at 27.4%; market priced the YES token at 58.0%.',
+    analyst: 'quant/lognormal',
+    at: ago(11),
+  },
+  {
+    tokenId: 'd13',
+    conviction: 0.68,
+    marketPrice: 0.5,
+    stake: 1.15,
+    question: 'BTC above $111,000 — 1 h',
+    thesis:
+      'BTC spot $109,420, realized vol 52% (200 x 1m candles). Zero-drift lognormal over 1 h puts P(BTC above $111,000) at 31.6%; market prices the NO token at 49.8%.',
+    analyst: 'quant/lognormal',
+    at: ago(0.6),
+  },
+  {
+    tokenId: 'd14',
+    conviction: 0.59,
+    marketPrice: 0.49,
+    stake: 0.95,
+    question: 'ETH Up or Down — 15 min',
+    thesis:
+      'ETH spot $4,118, realized vol 61% (200 x 1m candles). Zero-drift lognormal over 15 min puts P(ETH up) at 58.8%; market prices the YES token at 49.0%.',
+    analyst: 'quant/lognormal',
+    at: ago(0.2),
+  },
 ];
 
 const OPEN: OpenPosition[] = [

@@ -182,7 +182,9 @@ export function SettledLedger({ rows }: { rows: SettledCall[] }) {
               <Td align="right" tone="text-amber">
                 {usd(s.cost)}
               </Td>
-              <Td align="right">{s.payout > 0 ? usd(s.payout) : '—'}</Td>
+              {/* A losing call returned $0.00, which is known. The em dash is
+                  reserved throughout for "not known" — see `pct` in lib/data. */}
+              <Td align="right">{usd(s.payout)}</Td>
               <td className="px-4 py-3 text-center">
                 <span
                   className={`font-mono text-2xs font-bold tracking-widest ${
@@ -264,7 +266,8 @@ export function UnclaimedPanel({ rows }: { rows: UnclaimedWin[] }) {
       </ul>
       <p className="mt-4 border-t border-rule pt-3 text-xs text-ink-faint">
         Settled, won, and still sitting on-chain. Prediction markets do not pay out
-        automatically — <code className="font-mono text-amber-dim">skin claim</code> redeems them.
+        automatically — <code className="whitespace-nowrap font-mono text-amber-dim">skin claim</code>{' '}
+        redeems them.
       </p>
     </div>
   );

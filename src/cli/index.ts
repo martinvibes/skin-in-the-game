@@ -23,7 +23,7 @@ import { writeFile } from 'node:fs/promises';
 import pc from 'picocolors';
 
 import { LiveClient, type PredictionClient } from '../adapters/baw.js';
-import { DemoClient } from '../adapters/demo.js';
+import { DEMO_JOURNAL, DemoClient } from '../adapters/demo.js';
 import { bawAvailable } from '../adapters/exec.js';
 import {
   McpSource,
@@ -406,7 +406,10 @@ async function cmdExport(client: PredictionClient, flags: Flags) {
     client.openPositions(),
     client.unclaimed(),
     loadJournal(),
-    loadEntries(),
+    // Demo mode uses bundled entries rather than `~/.skin/journal.jsonl`, so the
+    // exported payload is identical on any machine and never carries a real
+    // operator's positions into a committed file.
+    client.mode === 'demo' ? Promise.resolve(DEMO_JOURNAL) : loadEntries(),
     client.walletBalance().catch(() => ({ usdt: null })),
     client.walletSettings().catch(() => ({ dailyRemaining: null, dailyLimit: null })),
   ]);
