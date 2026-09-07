@@ -98,10 +98,14 @@ export function sizeStake(
     };
   }
   if (!Number.isFinite(p) || p < CONVICTION_MIN || p > CONVICTION_MAX) {
+    // Near-certainties are refused rather than clamped. Out past ~98% the
+    // model's own error is larger than the edge it is claiming, so the stake
+    // would be sized on a number the model cannot actually support — and Kelly
+    // sizes those most aggressively, which is exactly the wrong direction.
     return {
       ok: false,
       reason: 'conviction-bounds',
-      detail: `Conviction ${fmt(p)} is outside the admissible range ${CONVICTION_MIN}–${CONVICTION_MAX}.`,
+      detail: `Model reads ${pct(p)}, outside the ${pct(CONVICTION_MIN)}–${pct(CONVICTION_MAX)} band it is trusted in. Past that point its own error exceeds the edge it claims.`,
     };
   }
 
@@ -183,6 +187,6 @@ export function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
-const fmt = (n: number) => (Number.isFinite(n) ? n.toFixed(2) : String(n));
+
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 const usd = (n: number) => `$${n.toFixed(2)}`;
