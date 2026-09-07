@@ -9,7 +9,7 @@
 Its track record is not a claim it writes about itself.
 It is settled positions on Binance prediction markets, scored with a rule it cannot game.
 
-**[Live dashboard →](https://skin-in-the-game-five.vercel.app)**
+**[Live dashboard →](https://tryskin.vercel.app/)**
 
 [![Binance Agent OS](https://img.shields.io/badge/Binance-Agent%20OS-F0B90B?style=flat-square)](https://agent.binance.com)
 [![Agentic Wallet](https://img.shields.io/badge/Agentic%20Wallet-baw-F0B90B?style=flat-square)](https://github.com/binance/binance-skills-hub)
