@@ -12,6 +12,8 @@
  * disagree with the tool it is demonstrating.
  */
 
+import { Field } from './Field';
+import { Roll } from './Nav';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   pct,
@@ -197,12 +199,14 @@ function Header({ phase }: { phase: Phase }) {
         <Dot className="bg-ghost" />
         <Dot className={live ? 'bg-teal animate-pulse-soft' : 'bg-ghost'} />
       </div>
-      <span className="font-mono text-2xs tracking-[0.14em] text-faint">
-        skin — {phase === 'idle' ? 'ready' : phase === 'scanning' ? 'running' : 'session'}
+      <span className="whitespace-nowrap font-mono text-2xs tracking-[0.14em] text-faint">
+        skin · {phase === 'idle' ? 'ready' : phase === 'scanning' ? 'running' : 'session'}
       </span>
-      <span className="ml-auto chip">
+      {/* The wallet half of this label is the first thing to go on a phone:
+          the point is "demo", and "no wallet" is the reassurance, not the fact. */}
+      <span className="ml-auto chip whitespace-nowrap">
         <span className="h-1.5 w-1.5 rounded-full bg-money" />
-        demo data · no wallet
+        demo data<span className="hidden sm:inline"> · no wallet</span>
       </span>
     </div>
   );
@@ -214,20 +218,34 @@ function Dot({ className }: { className: string }) {
 
 function Idle({ scan, onRun }: { scan: ScanTrace; onRun: () => void }) {
   return (
-    <div className="flex h-full min-h-[17rem] flex-col items-center justify-center px-4 text-center">
-      <p className="label mb-3">the loop, end to end</p>
-      <h3 className="mb-2 font-display text-2xl text-cream md:text-3xl">
+    <div className="relative flex h-full min-h-[24rem] flex-col items-center justify-center overflow-hidden px-4 text-center">
+      {/* The contour field only runs while the console is idle. Once output is
+          streaming, a moving background competes with the thing you came to
+          read, so it is unmounted rather than dimmed. */}
+      <Field />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(58% 58% at 50% 48%, rgb(var(--c-panel) / 0.55) 0%, rgb(var(--c-panel) / 0.08) 55%, rgb(var(--c-panel) / 0.85) 100%)',
+        }}
+      />
+      <p className="label relative mb-3">the loop, end to end</p>
+      <h3 className="relative mb-3 font-display text-[26px] font-medium tracking-[-0.03em] text-cream md:text-[32px]">
         Watch it form an opinion and pay for it.
       </h3>
-      <p className="mb-6 max-w-md text-sm leading-relaxed text-muted">
+      <p className="relative mb-7 max-w-md text-sm leading-relaxed text-muted">
         {scan.steps.length} live markets. The agent prices each one, compares itself to the
         market, and either sizes a stake or says why it will not. Then you confirm the money.
       </p>
-      <button className="btn-primary" onClick={onRun}>
-        Run a scan
+      <button className="btn-primary ink-well roll-host relative" onClick={onRun}>
+        <Roll>Run a scan</Roll>
         <span aria-hidden>→</span>
       </button>
-      <p className="mt-4 font-mono text-2xs text-ghost">nothing here spends real money</p>
+      <p className="relative mt-5 font-mono text-2xs text-ghost">
+        nothing here spends real money
+      </p>
     </div>
   );
 }
@@ -312,7 +330,7 @@ function StepRow({ step }: { step: ScanStep }) {
               ? `stake ${usd(step.sizing.stakeUsdt)} · ${kellyLabel(
                   step.sizing.kellyApplied / Math.max(step.sizing.kellyFull, 1e-9),
                 )} · bound by ${step.sizing.bindingConstraint}`
-              : `${copy.label} — ${copy.blurb}`}
+              : `${copy.label} · ${copy.blurb}`}
           </span>
         </p>
       </div>
@@ -331,7 +349,7 @@ function Summary({ scan, cleared }: { scan: ScanTrace; cleared: number }) {
       <p className="mt-1 font-mono text-2xs leading-relaxed text-faint">
         {passed} refused.{' '}
         {cleared === 0
-          ? 'An analyst with nothing to say, saying nothing, is the system working — not a failure.'
+          ? 'An analyst with nothing to say, saying nothing, is the system working, not a failure.'
           : 'A scan where nothing clears is a successful scan. Refusals are the product, not the leftovers.'}
       </p>
     </div>
@@ -405,7 +423,7 @@ function Placed({ cleared }: { cleared: ScanStep[] }) {
         <span className="text-cream">baw prediction order history --status FILLED</span>.
       </Line>
       <Line muted>
-        Convictions were written to the journal before any outcome is known — that is what makes
+        Convictions were written to the journal before any outcome is known. That is what makes
         the Brier score mean anything.
       </Line>
     </>
@@ -501,7 +519,7 @@ function Controls({
           </button>
           {rejected && (
             <p id="confirm-error" role="alert" className="font-mono text-2xs text-loss">
-              The whole word, typed out. “y” is not accepted — same as the CLI.
+              The whole word, typed out. “y” is not accepted, same as the CLI.
             </p>
           )}
         </form>

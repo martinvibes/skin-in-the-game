@@ -37,7 +37,7 @@ export function EquityCurve({ points }: { points: EquityPoint[] }) {
   if (points.length === 0) {
     return (
       <div className="flex h-[260px] items-center justify-center text-sm text-faint">
-        No settled calls yet — nothing to plot.
+        No settled calls yet. Nothing to plot.
       </div>
     );
   }
@@ -283,7 +283,7 @@ export function CalibrationPlot({ bins }: { bins: CalibrationBin[] }) {
 
       {bins.length === 0 ? (
         <p className="mt-3 text-center text-sm text-faint">
-          No journalled convictions yet — nothing to calibrate.
+          No journalled convictions yet. Nothing to calibrate.
         </p>
       ) : (
         // Two rows rather than three inline items: the plot is capped at 320px

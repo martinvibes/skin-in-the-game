@@ -73,7 +73,7 @@ export function heading(title: string, subtitle?: string): string {
 export function modeBanner(mode: 'live' | 'demo'): string {
   return mode === 'live'
     ? pc.green('● LIVE') + pc.dim('  real wallet, real money')
-    : pc.yellow('● DEMO') + pc.dim('  synthetic fixtures — no wallet, no money moved');
+    : pc.yellow('● DEMO') + pc.dim('  synthetic fixtures · no wallet, no money moved');
 }
 
 /**

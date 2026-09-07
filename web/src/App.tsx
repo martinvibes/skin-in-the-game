@@ -16,7 +16,8 @@
 import { useEffect, useState } from 'react';
 import { Act, Heading, Reveal } from './components/Act';
 import { Console } from './components/Console';
-import { Nav, type View } from './components/Nav';
+import { Loader } from './components/Loader';
+import { Nav, Roll, type View } from './components/Nav';
 import { CalibrationPlot, EquityCurve } from './components/Charts';
 import { OpenLedger, SettledLedger, Slip, Stat, UnclaimedPanel } from './components/Panels';
 import { resetScroll, scrollToId, useSmoothScroll } from './lib/scroll';
@@ -30,11 +31,18 @@ import {
   type ScanStep,
 } from './lib/data';
 
+type Stage = 'enter' | 'shown' | 'leave';
+
+/** How long the outgoing view has to get out of the way. */
+const LEAVE_MS = 300;
+
 export default function App() {
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>('console');
+  const [stage, setStage] = useState<Stage>('enter');
   const [staked, setStaked] = useState(false);
+  const [booting, setBooting] = useState(true);
 
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}record.json`)
@@ -45,28 +53,75 @@ export default function App() {
 
   // Re-measure on every view change: the acts are a different height each time,
   // and the smooth scroller drives the page off that measurement.
-  useSmoothScroll([view, data !== null]);
+  useSmoothScroll([view, data !== null, booting]);
 
   useEffect(() => {
     resetScroll();
   }, [view]);
+
+  // One listener feeds every `.ink-well` the pointer position it opens from,
+  // rather than each button carrying its own handler.
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const el = (e.target as Element | null)?.closest?.('.ink-well') as HTMLElement | null;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      el.style.setProperty('--mx', `${e.clientX - r.left}px`);
+      el.style.setProperty('--my', `${e.clientY - r.top}px`);
+    };
+    document.addEventListener('pointermove', onMove, { passive: true });
+    return () => document.removeEventListener('pointermove', onMove);
+  }, []);
+
+  // Views hand over rather than cut: the outgoing one lifts and fades, and only
+  // then does the next mount and rise into place. Both halves are transitions
+  // between declared states rather than a keyframe animation, because a
+  // transition cannot start from a value an animation was supplying and the
+  // outgoing view would otherwise blink out instead of leaving.
+  function changeView(next: View) {
+    if (next === view || stage === 'leave') return;
+    setStage('leave');
+    window.setTimeout(() => {
+      setView(next);
+      setStage('enter');
+    }, LEAVE_MS);
+  }
+
+  // A view mounts already offset and transparent; it settles once the browser
+  // has painted it there at least once.
+  useEffect(() => {
+    if (stage !== 'enter') return;
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => setStage('shown'));
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
+  }, [stage, view]);
 
   if (error) return <Fallback message={error} />;
   if (!data) return <Loading />;
 
   return (
     <>
-      <Nav view={view} onView={setView} mode={data.mode} />
+      {booting && (
+        <Loader target={data.record.totalStaked} onDone={() => setBooting(false)} />
+      )}
+      <Nav view={view} onView={changeView} mode={data.mode} />
       <div id="scroll-content">
-        <main>
-          {view === 'console' && (
-            <ConsoleView data={data} staked={staked} onStaked={() => setStaked(true)} />
-          )}
-          {view === 'record' && <RecordView data={data} />}
-          {view === 'markets' && <MarketsView data={data} />}
-          {view === 'how it works' && <HowView data={data} />}
-        </main>
-        <Footer data={data} />
+        <div key={view} className="view" data-state={stage}>
+          <main>
+            {view === 'console' && (
+              <ConsoleView data={data} staked={staked} onStaked={() => setStaked(true)} />
+            )}
+            {view === 'record' && <RecordView data={data} />}
+            {view === 'markets' && <MarketsView data={data} />}
+            {view === 'how it works' && <HowView data={data} />}
+          </main>
+          <Footer data={data} />
+        </div>
       </div>
     </>
   );
@@ -99,7 +154,7 @@ function ConsoleView({
               <span className="serif-accent">faked</span>.
             </>
           }
-          lede="Hit rate is easy to flatter — bet only on 95¢ near-certainties and it looks superb while you make nothing. Realized money and calibration cannot be gamed that way, so they come first."
+          lede="Hit rate is easy to flatter. Bet only on 95¢ near-certainties and it looks superb while you make nothing. Realized money and calibration cannot be gamed that way, so they come first."
         />
         <div className="grid gap-px overflow-hidden rounded-panel border hair sm:grid-cols-3">
           {[
@@ -119,11 +174,11 @@ function ConsoleView({
               label: 'hit rate',
               value: pct(rec.hitRate),
               tone: undefined,
-              note: `${rec.wins} won · ${rec.losses} lost — listed last, on purpose`,
+              note: `${rec.wins} won · ${rec.losses} lost, listed last on purpose`,
             },
           ].map((s, i) => (
             <Reveal key={s.label} delay={i * 90}>
-              <div className="h-full bg-panel p-7">
+              <div className="trace relative h-full bg-panel p-7">
                 <p className="label mb-3">{s.label}</p>
                 <p data-numeric className={`font-mono text-[32px] ${s.tone ?? 'text-ink'}`}>
                   {s.value}
@@ -135,7 +190,7 @@ function ConsoleView({
         </div>
         {staked && (
           <p className="mt-6 font-mono text-2xs text-live">
-            ✓ your run is journalled — in a live session those two calls would now appear as open
+            ✓ your run is journalled. In a live session those two calls would now appear as open
             positions
           </p>
         )}
@@ -168,20 +223,23 @@ function Hero({ data, onStaked }: { data: Payload; onStaked: () => void }) {
         </h1>
         <p className="mx-auto mt-7 max-w-[46ch] text-[17px] leading-relaxed text-muted md:text-[19px]">
           It is not allowed to tell you what a market will do until it has put its own money on
-          the answer. Its track record is not a claim it makes — it is a balance you can read back
-          off Binance.
+          the answer. Its track record is not a claim it makes. It is a balance you can read back off
+          Binance.
         </p>
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-          <button className="btn-primary" onClick={() => scrollToId('run')}>
-            Run it <span aria-hidden>↓</span>
+          <button
+            className="btn-primary ink-well roll-host"
+            onClick={() => scrollToId('run')}
+          >
+            <Roll>Run it</Roll> <span aria-hidden>↓</span>
           </button>
           <a
-            className="btn"
+            className="btn ink-well roll-host"
             href="https://github.com/martinvibes/skin-in-the-game"
             target="_blank"
             rel="noreferrer"
           >
-            View on GitHub <span aria-hidden>→</span>
+            <Roll>View on GitHub</Roll> <span aria-hidden>→</span>
           </a>
         </div>
       </Reveal>
@@ -271,7 +329,7 @@ function RecordView({ data }: { data: Payload }) {
               <span className="serif-accent">does not get a vote</span>.
             </>
           }
-          lede="Nothing below is authored by the agent. Every figure is a function of positions that have already resolved on Binance — read back through the Agentic Wallet, not written by the thing being measured."
+          lede="Nothing below is authored by the agent. Every figure is a function of positions that have already resolved on Binance, read back through the Agentic Wallet rather than written by the thing being measured."
         />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((node, i) => (
@@ -305,7 +363,7 @@ function RecordView({ data }: { data: Payload }) {
         <Heading
           kicker="calibration"
           title="Was it honest, not just lucky?"
-          lede="Of the calls it made at 70% confidence, did about 70% come in? A forecaster sitting on the diagonal is telling the truth about its own uncertainty. This is the measure money alone cannot give you — and the reason every conviction is journalled before the outcome is known."
+          lede="Of the calls it made at 70% confidence, did about 70% come in? A forecaster sitting on the diagonal is telling the truth about its own uncertainty. This is the measure money alone cannot give you, and the reason every conviction is journalled before the outcome is known."
         />
         <Reveal>
           <div className="grid gap-3 lg:grid-cols-[320px_1fr]">
@@ -379,7 +437,7 @@ function RecordView({ data }: { data: Payload }) {
           <Heading
             kicker="the slips"
             title="Every call, with the reasoning that produced it."
-            lede="A claim, a price, and money committed against it — written down before the market resolved, and not editable afterwards."
+            lede="A claim, a price, and money committed against it, written down before the market resolved and not editable afterwards."
           />
           <div className="grid gap-3 md:grid-cols-2">
             {data.journal
@@ -435,7 +493,7 @@ function MarketsView({ data }: { data: Payload }) {
               <span className="serif-accent">{cleared} worth betting on</span>.
             </>
           }
-          lede="The agent's full working on every market in the last scan — what it thinks, what the market thinks, and exactly why it did or did not act."
+          lede="The agent's full working on every market in the last scan: what it thinks, what the market thinks, and exactly why it did or did not act."
         />
         <Reveal>
           <div className="flex flex-wrap gap-2">
@@ -473,7 +531,7 @@ function MarketRow({ step }: { step: ScanStep }) {
   const copy = VERDICT_COPY[step.verdict];
   return (
     <article
-      className="panel p-5"
+      className="panel trace p-5"
       style={ok ? { borderColor: 'rgb(var(--c-gain) / 0.35)' } : undefined}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -544,7 +602,7 @@ const STAGES: Array<[string, string]> = [
   ['observe', 'Realized volatility from Binance klines, fetched through the MCP Server.'],
   [
     'price',
-    'A zero-drift lognormal returns a probability. No LLM guess — a formula you can recheck.',
+    'A zero-drift lognormal returns a probability. No LLM guess, just a formula you can recheck.',
   ],
   ['compare', 'Edge is the gap against the market price. Under four points, no bet.'],
   ['size', 'Quarter-Kelly, capped per call, by the run budget, and by the wallet’s own daily limit.'],
@@ -554,7 +612,7 @@ const STAGES: Array<[string, string]> = [
 const SURFACES: Array<[string, string]> = [
   [
     'agentic wallet',
-    'The whole trading path — reading markets, placing orders, redeeming winnings, and reading back settled positions to build the record.',
+    'The whole trading path: reading markets, placing orders, redeeming winnings, and reading back settled positions to build the record.',
   ],
   [
     'binance mcp server',
@@ -577,7 +635,7 @@ function HowView({ data }: { data: Payload }) {
               How a call becomes <span className="serif-accent">money</span>.
             </>
           }
-          lede="Five stages, and a market can be refused at any of them. Most are — that is the system working, not a bug in it."
+          lede="Five stages, and a market can be refused at any of them. Most are, and that is the system working rather than a bug in it."
         />
         <ol className="grid gap-6 md:grid-cols-5">
           {STAGES.map(([name, blurb], i) => (
@@ -605,7 +663,7 @@ function HowView({ data }: { data: Payload }) {
             .filter((k) => k !== 'staked')
             .map((k, i) => (
               <Reveal key={k} delay={Math.min(i, 4) * 70}>
-                <div className="h-full bg-panel p-5">
+                <div className="trace relative h-full bg-panel p-5">
                   <p className="mb-2 font-mono text-2xs uppercase tracking-[0.14em] text-teal">
                     {k}
                   </p>
@@ -624,7 +682,7 @@ function HowView({ data }: { data: Payload }) {
               The spending limit is <span className="serif-accent">not a prompt</span>.
             </>
           }
-          lede="It is the Agentic Wallet’s daily limit, set by the user in the Binance app. The agent can read it and cannot raise it — so “the agent went rogue and spent everything” is not a failure mode that depends on the agent’s cooperation."
+          lede="It is the Agentic Wallet’s daily limit, set by the user in the Binance app. The agent can read it and cannot raise it, so “the agent went rogue and spent everything” is not a failure mode that depends on the agent’s cooperation."
         />
         <div className="grid gap-8 md:grid-cols-3">
           {SURFACES.map(([k, v], i) => (

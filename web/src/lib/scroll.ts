@@ -14,7 +14,7 @@
  */
 import { useEffect } from 'react';
 
-const EASE = 0.085;
+const EASE = 0.072;
 const CONTENT_ID = 'scroll-content';
 
 function wantsSmooth(): boolean {

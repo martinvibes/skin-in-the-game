@@ -32,7 +32,7 @@ export function Stat({
   tone?: string;
 }) {
   return (
-    <div className="panel h-full px-5 py-5">
+    <div className="panel trace h-full px-5 py-5">
       <p className="label mb-2.5">{label}</p>
       <p data-numeric className={`font-mono text-3xl font-medium leading-none ${tone}`}>
         {value}
@@ -58,7 +58,7 @@ export function Stamp({ kind }: { kind: 'WON' | 'LOST' | 'OPEN' | 'UNCLAIMED' })
 export function Slip({ entry, settled }: { entry: JournalEntry; settled?: SettledCall }) {
   const edge = entry.conviction - entry.marketPrice;
   return (
-    <article className="panel animate-rise p-5">
+    <article className="panel trace animate-rise p-5">
       <header className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="label mb-1.5">{shortDate(entry.at)}</p>
@@ -225,8 +225,9 @@ export function UnclaimedPanel({ rows }: { rows: UnclaimedWin[] }) {
         ))}
       </ul>
       <p className="mt-4 border-t border-line pt-3.5 text-xs leading-relaxed text-faint">
-        Settled, won, and still sitting on-chain. Prediction markets do not pay out automatically
-        — <code className="whitespace-nowrap font-mono text-money">skin claim</code> redeems them.
+        Settled, won, and still sitting on-chain. Prediction markets do not pay out
+        automatically. <code className="whitespace-nowrap font-mono text-money">skin claim</code>{' '}
+        redeems them.
       </p>
     </div>
   );

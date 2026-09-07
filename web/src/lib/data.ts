@@ -203,7 +203,7 @@ export function moneyTone(n: number): string {
 /** Plain-English reading of a Brier score. Mirrors `engine/record.ts`. */
 export function brierVerdict(brier: number | null, n: number): string {
   if (brier === null || n === 0) return 'no scored calls yet';
-  if (n < 5) return `only ${n} scored call${n === 1 ? '' : 's'} — too few to judge`;
+  if (n < 5) return `only ${n} scored call${n === 1 ? '' : 's'}, too few to judge`;
   if (brier < 0.15) return 'well calibrated';
   if (brier < 0.25) return 'better than uninformed';
   if (brier < 0.3) return 'about as useful as always saying 50%';
