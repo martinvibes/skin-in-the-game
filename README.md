@@ -17,7 +17,7 @@ It is settled positions on Binance prediction markets, scored with a rule it can
 [![Agentic Wallet](https://img.shields.io/badge/Agentic%20Wallet-baw-F0B90B?style=flat-square)](https://github.com/binance/binance-skills-hub)
 [![MCP Server](https://img.shields.io/badge/MCP-agent.binance.com-5FD693?style=flat-square)](https://agent.binance.com/mcp/agentic)
 [![ci](https://img.shields.io/github/actions/workflow/status/martinvibes/skin-in-the-game/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/martinvibes/skin-in-the-game/actions)
-[![tests](https://img.shields.io/badge/tests-49%20passing-5FD693?style=flat-square)](test/math.test.ts)
+[![tests](https://img.shields.io/badge/tests-55%20passing-5FD693?style=flat-square)](test/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square)](tsconfig.json)
 [![license](https://img.shields.io/badge/license-MIT-EFE8DA?style=flat-square)](LICENSE)
 
@@ -67,6 +67,7 @@ Every number on the dashboard traces back to a settled on-chain position.
 - [Quick start](#quick-start)
 - [Binance Agent OS surfaces used](#binance-agent-os-surfaces-used)
   - [Using the MCP Server](#using-the-mcp-server)
+- [Skin as an MCP server](#skin-as-an-mcp-server)
 - [Why it refuses](#why-it-refuses)
 - [How the model works](#how-the-model-works)
 - [Architecture](#architecture)
@@ -266,6 +267,7 @@ loudly rather than silently pretending.
 | Surface | How this project uses it |
 |---|---|
 | **Agentic Wallet (`baw`)** | The entire trading path. `prediction market list / detail / last-trade-price` to read markets, `prediction trade place-order` to stake, `prediction trade redeem` to claim, `prediction position list --tab ONGOING\|PENDING_CLAIM` and `settled-history` to build the record, `wallet balance` for the bankroll. See [`src/adapters/baw.ts`](src/adapters/baw.ts). |
+| **MCP, as a server** | Skin is itself an MCP server. `skin mcp` exposes eight read-only tools so another agent can query this one's record, calibration and current book, and cannot spend its money. See [`src/mcp/server.ts`](src/mcp/server.ts) and [the section below](#skin-as-an-mcp-server). |
 | **Binance MCP Server** | Market data for the pricing model. An MCP-authenticated agent fetches klines and hands them over with `--mcp-data`, so volatility is computed under the user's own Agent OS session. See [`src/adapters/marketdata.ts`](src/adapters/marketdata.ts) and [the walk-through below](#using-the-mcp-server). |
 | **Skills Hub format** | [`skill/SKILL.md`](skill/SKILL.md) is a publishable skill in the Hub's frontmatter format, with a `references/` split. It is what turns the CLI into an agent workflow: a policy the agent has to follow, not just a binary it can call. |
 | **MPC Wallet limits** | The wallet's own daily spend limit is read and treated as a hard ceiling on sizing, so the agent is *structurally* unable to exceed a boundary the human set in the Binance app. |
@@ -321,6 +323,62 @@ endpoint, which needs no credentials. Same arithmetic either way; the MCP path
 is the one that runs inside the user's Agent OS session. It tries four hosts in
 order, including `data-api.binance.vision`, because `api.binance.com` does not
 resolve from every country this was developed in.
+
+---
+
+## Skin as an MCP server
+
+The agent keeping this record should not be the only one able to read it. `skin
+mcp` speaks MCP over stdio, so any host (Claude Code, Claude Desktop, another
+desk's agent) can interrogate the record directly instead of trusting a
+screenshot of it.
+
+```bash
+claude mcp add skin -- npx tsx src/cli/index.ts mcp --demo
+```
+
+A [`.mcp.json`](.mcp.json) is committed too, so a clone of this repo opened in
+Claude Code offers the server without any setup at all.
+
+Eight tools. None of them spends.
+
+| Tool | Answers |
+|---|---|
+| `skin_record` | Settled calls, hit rate, realized PnL, ROI, Brier score |
+| `skin_calibration` | Reliability curve: where the agent's numbers break down |
+| `skin_slips` | Every conviction written down before the outcome was known |
+| `skin_positions` | Money committed, not yet resolved, with the conviction behind it |
+| `skin_unclaimed` | Settled wins still sitting on-chain |
+| `skin_scan` | A view on every open market, with the full working |
+| `skin_opinion` | One market: spot, volatility, horizon, probability, edge |
+| `skin_propose` | A sized stake, and the command a human must run to place it |
+
+### There is no `skin_stake` tool, and that is the design
+
+An MCP server is a surface an arbitrary model can drive, usually several turns
+removed from the person who owns the wallet. On a venue where anyone can create
+a market, market titles are attacker-controlled text arriving inside the same
+context window as the tool descriptions. Prompt injection there is not
+hypothetical.
+
+So the spend boundary sits at the process edge rather than inside a tool
+description. `skin_propose` returns a fully sized stake (Kelly fraction,
+binding constraint, thesis, token id) and then this:
+
+```json
+"execution": {
+  "placed": false,
+  "executableHere": false,
+  "command": "npm run skin -- stake --live --budget 6 --per-call 1.5 --kelly 0.25",
+  "confirmation": "That command prints the receipt, then waits for the operator
+                   to type the word `stake` before any order is submitted."
+}
+```
+
+A model can reason the whole way to a position. Only a human at a terminal can
+open it. [`test/mcp.test.ts`](test/mcp.test.ts) asserts that invariant twice:
+once against the tool names, and once against the server's source, so an edit
+that reaches for `client.placeOrder` fails the suite rather than the review.
 
 ---
 
@@ -445,9 +503,13 @@ src/
     sizing.ts            Kelly, edge, the four ceilings
     record.ts            Brier, calibration bins, equity curve
     journal.ts           append-only JSONL, first-write-wins
+    scan.ts              one scan as data, shared by CLI, dashboard and MCP
   cli/
     index.ts             record | scan | stake | claim | positions | export
+    doctor.ts            probe every live wallet call before staking
     render.ts            receipts, ledgers, sparklines, ANSI-aware padding
+  mcp/
+    server.ts            eight read-only tools · no tool can spend
 
 skill/
   SKILL.md               the Agent OS skill · the policy the agent follows
@@ -456,7 +518,7 @@ skill/
 web/                     Vite + React dashboard ("Ledger Noir")
 fixtures/                a klines payload for exercising the --mcp-data path
 docs/                    dashboard screenshots used by this README
-test/math.test.ts        49 tests over the pure engine
+test/                    55 tests: the pure engine, and the MCP surface
 ```
 
 ~3,300 lines of TypeScript, `strict` with `noUncheckedIndexedAccess`.
@@ -473,8 +535,10 @@ test/math.test.ts        49 tests over the pure engine
 | `skin claim` | **moves** | Redeem settled winnings after typed confirmation |
 | `skin positions` | — | What is still open, with time to resolution |
 | `skin export` | — | Dump the record as JSON for the dashboard |
+| `skin doctor` | — | Probe every live wallet call before the first real stake |
+| `skin mcp` | — | Serve the record to other agents over MCP, read-only |
 
-Flags: `--demo --live --yes --json --budget --per-call --kelly --min-order --limit --mcp-data --out`.
+Flags: `--demo --live --yes --json --budget --per-call --kelly --min-order --limit --mcp-data --deep --out`.
 Full reference: [`skill/references/commands.md`](skill/references/commands.md).
 
 ---
@@ -506,14 +570,20 @@ This spends real money from a real wallet, so:
 ## Testing
 
 ```bash
-npm test          # 49 tests
+npm test          # 55 tests
 npm run typecheck # tsc --noEmit, strict
 ```
 
-The tests cover the mathematics, not the plumbing: `erf` against known values,
-`Φ` symmetry, Kelly against hand-computed cases, the zero-at-`p=c` property,
-which ceiling binds in each regime, Brier against textbook examples, the
-`null`-not-`0` rule, calibration bucketing, and equity accumulation.
+[`test/math.test.ts`](test/math.test.ts) covers the mathematics, not the
+plumbing: `erf` against known values, `Φ` symmetry, Kelly against hand-computed
+cases, the zero-at-`p=c` property, which ceiling binds in each regime, Brier
+against textbook examples, the `null`-not-`0` rule, calibration bucketing, and
+equity accumulation.
+
+[`test/mcp.test.ts`](test/mcp.test.ts) runs a real client against a real server
+over a linked transport pair, and pins the spend boundary: no tool name may
+contain a state-changing verb, and the server's own source may not reference
+`client.placeOrder` or `client.redeem`.
 
 [CI](.github/workflows/ci.yml) runs all of that on every push, plus a smoke test
 that executes every command in demo mode on a clean machine, with no wallet, no
@@ -540,10 +610,13 @@ Five minutes, in order:
    a named reason.
 3. **`npm run skin -- stake --demo`**: the receipt, and the typed
    confirmation. Try typing `y`; it will not accept it.
-4. **[`src/engine/sizing.ts`](src/engine/sizing.ts)**: ~120 lines, the heart of
+4. **`claude mcp add skin -- npx tsx src/cli/index.ts mcp --demo`**: then ask
+   your own agent *"how good is skin's record?"* and watch it answer from the
+   settled positions. Ask it to place a bet and watch it discover it cannot.
+5. **[`src/engine/sizing.ts`](src/engine/sizing.ts)**: ~120 lines, the heart of
    the project. Four ceilings, the tightest binds, the binding one is named in
    the output.
-5. **[`skill/SKILL.md`](skill/SKILL.md)**: the Agent OS skill, including the
+6. **[`skill/SKILL.md`](skill/SKILL.md)**: the Agent OS skill, including the
    rule the agent is bound by: *it does not get to state an opinion about a
    market without backing it.*
 

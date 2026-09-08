@@ -8,6 +8,8 @@
  *   skin claim      sweep settled winnings and redeem them
  *   skin positions  what is still open
  *   skin export     dump the record as JSON for the dashboard
+ *   skin doctor     check every live wallet call before staking real money
+ *   skin mcp        expose the record to other agents over MCP, read-only
  *
  * ## Confirmation
  *
@@ -19,6 +21,8 @@
 
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout, argv, exit } from 'node:process';
+import { cmdDoctor } from './doctor.js';
+import { serveStdio } from '../mcp/server.js';
 import { writeFile } from 'node:fs/promises';
 import pc from 'picocolors';
 
@@ -34,6 +38,7 @@ import {
 import { formOpinion } from '../engine/analyst.js';
 import { sizeStake } from '../engine/sizing.js';
 import { buildRecord, joinConvictions } from '../engine/record.js';
+import { scanMarkets } from '../engine/scan.js';
 import { load as loadJournal, loadEntries, record as journalRecord } from '../engine/journal.js';
 import type { Budget, StakeVerdict } from '../domain/types.js';
 import {
@@ -59,6 +64,8 @@ import {
 // ---------------------------------------------------------------------------
 
 interface Flags {
+  deep: boolean;
+  raw: boolean;
   demo: boolean;
   live: boolean;
   yes: boolean;
@@ -94,6 +101,8 @@ function parseFlags(args: string[]): Flags {
     kelly: numOr('kelly', 0.25),
     minOrder: numOr('min-order', 1),
     limit: numOr('limit', 12),
+    deep: has('deep'),
+    raw: has('raw'),
     mcpData: get('mcp-data'),
     out: get('out'),
   };
@@ -399,98 +408,6 @@ async function cmdPositions(client: PredictionClient, flags: Flags) {
   console.log(rule());
 }
 
-/** Round every number in a payload, leaving strings, nulls and shape intact. */
-function roundDeep<T>(value: T, places: number): T {
-  const f = 10 ** places;
-  if (typeof value === 'number') return (Math.round(value * f) / f) as unknown as T;
-  if (Array.isArray(value)) return value.map((v) => roundDeep(v, places)) as unknown as T;
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, roundDeep(v, places)]),
-    ) as T;
-  }
-  return value;
-}
-
-/**
- * One scan, recorded rather than printed.
- *
- * The dashboard's console replays this step by step. Producing it here — from
- * the same `formOpinion` and `sizeStake` the CLI itself calls — means the web
- * UI cannot drift from the tool: it is showing a real run's working, not a
- * second implementation of the model that happens to agree today.
- */
-async function buildScanTrace(
-  client: PredictionClient,
-  source: MarketDataSource,
-  flags: Flags,
-  budget: Budget,
-  bankroll: number,
-) {
-  const markets = await client.markets({ limit: flags.limit });
-  const steps = [];
-  let staked = 0;
-
-  for (const m of markets) {
-    const base = { question: m.title, marketTopicId: m.marketTopicId, endDate: m.endDate };
-
-    const opinion = await formOpinion(m, source);
-    if (!opinion.ok) {
-      steps.push({ ...base, verdict: 'no-model', detail: opinion.reason });
-      continue;
-    }
-
-    const o = opinion.opinion;
-    const obs = o.observation;
-    const view = {
-      ...base,
-      symbol: obs.symbol,
-      spot: obs.spot,
-      annualVol: obs.annualVol,
-      samples: obs.samples,
-      interval: obs.interval,
-      rail: obs.rail,
-      side: o.side,
-      tokenId: o.tokenId,
-      conviction: o.conviction,
-      marketPrice: o.marketPrice,
-      edge: o.conviction - o.marketPrice,
-      thesis: o.thesis,
-      analyst: o.analyst,
-    };
-
-    const sized = sizeStake(o.conviction, o.marketPrice, bankroll, budget);
-    if (!sized.ok) {
-      steps.push({ ...view, verdict: sized.reason, detail: sized.detail });
-      continue;
-    }
-
-    // Mirror the real run: a cleared stake consumes run budget, so a later
-    // market can legitimately be refused for `budget-exhausted`.
-    budget.spent += sized.sizing.stakeUsdt;
-    staked += sized.sizing.stakeUsdt;
-    steps.push({ ...view, verdict: 'staked', detail: null, sizing: sized.sizing });
-  }
-
-  return {
-    bankroll,
-    runCap: budget.runCap,
-    perCallCap: budget.perCallCap,
-    minimumOrder: budget.minimumOrder,
-    kellyFraction: budget.kellyFraction,
-    walletDailyRemaining: budget.walletDailyRemaining,
-    rail: source.rail,
-    totalStaked: Math.round(staked * 100) / 100,
-    // The horizon is measured from `Date.now()`, so two exports taken a
-    // millisecond apart disagree in the eleventh decimal. That drift is far
-    // below anything the dashboard renders, but it would make the committed
-    // payload un-reproducible — and a payload nobody can regenerate is a
-    // payload nobody can check. Four decimals is three more than the UI shows
-    // and hundreds of times coarser than the jitter.
-    steps: roundDeep(steps, 4),
-  };
-}
-
 /** Dump everything the dashboard needs as one JSON file. */
 async function cmdExport(
   client: PredictionClient,
@@ -513,7 +430,13 @@ async function cmdExport(
   ]);
 
   const withConviction = joinConvictions(settled, journal);
-  const scan = await buildScanTrace(client, source, flags, { ...budget, spent: 0 }, bankroll);
+  const scan = await scanMarkets(
+    client,
+    source,
+    { limit: flags.limit },
+    { ...budget, spent: 0 },
+    bankroll,
+  );
   const payload = {
     generatedAt: new Date().toISOString(),
     mode: client.mode,
@@ -584,6 +507,8 @@ function help(): string {
     '    claim        sweep settled winnings and redeem them',
     '    positions    what is still open',
     '    export       dump the record as JSON for the dashboard',
+    '    doctor       check every live wallet call before staking real money',
+    '    mcp          serve the record to other agents over MCP (read-only)',
     '',
     pc.dim('  MODE'),
     '    --demo             synthetic fixtures; no wallet, no money (default without baw)',
@@ -596,6 +521,7 @@ function help(): string {
     '    --min-order <usdt> venue minimum order size           (default 1)',
     '',
     pc.dim('  OTHER'),
+    '    --deep             doctor: also price a quote (still places no order)',
     '    --mcp-data <path>  klines JSON supplied by an MCP-connected agent',
     '    --limit <n>        markets to scan / calls to list    (default 12)',
     '    --json             machine-readable output',
@@ -620,9 +546,36 @@ async function main() {
   const client = await makeClient(flags);
   const source = makeDataSource(flags, client.mode);
 
+  // MCP owns stdout from here on: anything written to it that is not a
+  // protocol frame breaks the transport, so the banner is skipped entirely and
+  // `serveStdio` announces itself on stderr instead.
+  if (command === 'mcp') {
+    await serveStdio(client, source, {
+      limit: flags.limit,
+      runCap: flags.runCap,
+      perCall: flags.perCall,
+      kelly: flags.kelly,
+      minOrder: flags.minOrder,
+    });
+    return;
+  }
+
   if (!flags.json) {
     console.log('');
     console.log('  ' + pc.bold('SKIN') + pc.dim('  skin in the game') + '   ' + modeBanner(client.mode));
+  }
+
+  // Doctor runs before the sign-in guard on purpose: "you are not signed in"
+  // is one of the diagnoses, not a reason to refuse to diagnose.
+  if (command === 'doctor') {
+    if (client.mode !== 'live') {
+      console.error(
+        pc.red('\n  doctor only means anything against a real wallet.\n') +
+          pc.dim('  Install `baw`, sign in, then run: npm run skin -- doctor --live\n'),
+      );
+      exit(1);
+    }
+    exit(await cmdDoctor(client as LiveClient, { deep: flags.deep, raw: flags.raw }));
   }
 
   // A signed-out wallet is a normal first-run state, not a crash.

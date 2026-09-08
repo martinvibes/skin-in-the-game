@@ -103,6 +103,40 @@ skin export                        # to stdout
 
 ---
 
+## `skin doctor`
+
+Runs every read-only wallet call the agent makes and prints the keys Binance
+actually returned next to the values that parsed out of them. Places no order
+and redeems nothing.
+
+```bash
+skin doctor --live
+skin doctor --live --deep          # also prices a quote; still no order
+```
+
+Run this once before the first live stake. A field that fails to parse shows as
+`NULL` in red with the file to fix, which is the difference between a
+five-second correction and an evening with a debugger while a market resolves.
+
+---
+
+## `skin mcp`
+
+Serves the record to other agents over MCP, on stdio.
+
+```bash
+claude mcp add skin -- npx tsx src/cli/index.ts mcp --demo
+```
+
+Eight tools, all read-only: `skin_record`, `skin_calibration`, `skin_slips`,
+`skin_positions`, `skin_unclaimed`, `skin_scan`, `skin_opinion`, `skin_propose`.
+
+There is deliberately no `skin_stake` tool. `skin_propose` sizes a stake and
+returns the command that would place it; a human has to run that command and
+type the confirmation word. See [the README](../../README.md#skin-as-an-mcp-server).
+
+---
+
 ## Global flags
 
 | Flag | Meaning |
@@ -111,6 +145,7 @@ skin export                        # to stdout
 | `--live` | Force the real wallet. Errors if `baw` is absent. |
 | `--json` | Machine-readable output. |
 | `--mcp-data <path>` | Klines fetched through the Binance MCP Server. |
+| `--deep` | `doctor` only: also price a quote. Still places no order. |
 
 Mode is printed as a banner on every command. If you cannot see which mode
 produced a number, do not report the number.
