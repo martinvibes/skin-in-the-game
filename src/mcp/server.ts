@@ -564,8 +564,31 @@ export async function serveStdio(
   defaults: McpDefaults,
 ): Promise<void> {
   const server = createSkinServer(client, source, defaults);
+
+  // Every byte of stdout belongs to the JSON-RPC stream; a stray character
+  // there corrupts the session. So the banner goes to stderr, which the host
+  // shows the operator and the protocol never reads. Without it the process
+  // looks hung, when in fact a silent stdout is exactly what success is.
+  const tools = [
+    ['skin_record', 'settled calls, PnL, Brier score'],
+    ['skin_calibration', 'where the numbers break down'],
+    ['skin_slips', 'convictions written before the outcome'],
+    ['skin_positions', 'money committed, not yet resolved'],
+    ['skin_unclaimed', 'settled wins still on-chain'],
+    ['skin_scan', 'every open market, with the working'],
+    ['skin_opinion', 'one market: vol, horizon, probability'],
+    ['skin_propose', 'a sized stake, and the command a human must run'],
+  ];
+  const w = Math.max(...tools.map(([n]) => n!.length));
   process.stderr.write(
-    `skin mcp · 8 read-only tools · ${client.mode} mode · no tool on this server can spend\n`,
+    `\n  SKIN MCP  ${client.mode} mode · listening on stdio\n\n` +
+      tools.map(([n, d]) => `    ${n!.padEnd(w)}  ${d}\n`).join('') +
+      `\n  Eight tools, none of which can spend. There is deliberately no\n` +
+      `  skin_stake: an agent can reason all the way to a position and still\n` +
+      `  cannot open one.\n\n` +
+      `  stdout is the protocol, so nothing more will be printed here.\n` +
+      `  Waiting for a client. Ctrl-C to stop.\n\n`,
   );
+
   await server.connect(new StdioServerTransport());
 }

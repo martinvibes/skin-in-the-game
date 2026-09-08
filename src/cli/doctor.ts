@@ -19,6 +19,19 @@
  */
 
 import pc from 'picocolors';
+import {
+  bad as danger,
+  cool,
+  faint,
+  ghost,
+  gold,
+  goldBadge,
+  good,
+  greenBadge,
+  ink,
+  redBadge,
+  rule,
+} from './render.js';
 import { runBaw } from '../adapters/exec.js';
 import type { LiveClient } from '../adapters/baw.js';
 
@@ -46,10 +59,10 @@ function shapeOf(v: unknown, depth = 0): string {
 }
 
 function show(v: unknown): string {
-  if (v === null || v === undefined) return pc.red('NULL');
+  if (v === null || v === undefined) return danger('NULL');
   if (typeof v === 'string') return v.length > 46 ? `${v.slice(0, 44)}…` : v;
   if (typeof v === 'number') return String(v);
-  if (typeof v === 'boolean') return v ? pc.green('true') : pc.yellow('false');
+  if (typeof v === 'boolean') return v ? good('true') : gold('false');
   if (Array.isArray(v)) return `${v.length} row(s)`;
   return JSON.stringify(v).slice(0, 46);
 }
@@ -235,8 +248,8 @@ export async function cmdDoctor(
 
   console.log('');
   console.log(pc.bold('  WALLET DOCTOR'));
-  console.log(pc.dim('  every read-only call the agent makes, and what parsed out of it'));
-  console.log(pc.dim('  ' + '─'.repeat(74)));
+  console.log(faint('  every read-only call the agent makes, and what parsed out of it'));
+  console.log(rule());
 
   const blockers: string[] = [];
   let failures = 0;
@@ -248,22 +261,18 @@ export async function cmdDoctor(
     if (bad) failures++;
     nulls += missing;
 
-    const tag = bad
-      ? pc.red('FAIL')
-      : missing > 0
-        ? pc.yellow('PART')
-        : pc.green(' OK ');
+    const tag = bad ? redBadge('FAIL') : missing > 0 ? goldBadge('PART') : greenBadge('OK');
 
     console.log('');
-    console.log(`  [${tag}] ${pc.bold(r.label)}`);
-    console.log(pc.dim(`         ${r.cmd}`));
+    console.log(`  ${tag} ${pc.bold(ink(r.label))}`);
+    console.log(faint(`         ${r.cmd}`));
 
     if (bad) {
-      console.log(pc.red(`         ${(r.error ?? '').split('\n')[0]}`));
+      console.log(danger(`         ${(r.error ?? '').split('\n')[0]}`));
       continue;
     }
 
-    console.log(pc.dim(`         returned  `) + pc.cyan(r.rawKeys));
+    console.log(faint(`         returned  `) + cool(r.rawKeys));
     for (const [k, v] of r.parsed) {
       console.log(`         ${k.padEnd(22)}${show(v)}`);
 
@@ -295,7 +304,7 @@ export async function cmdDoctor(
   }
 
   console.log('');
-  console.log(pc.dim('  ' + '─'.repeat(74)));
+  console.log(rule());
 
   for (const b of blockers) console.log(pc.yellow(`  ! ${b}`));
   if (blockers.length > 0) console.log('');

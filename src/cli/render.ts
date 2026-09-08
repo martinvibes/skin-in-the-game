@@ -18,6 +18,57 @@ import pc from 'picocolors';
 import type { Record as TrackRecord, SettledCall, Sizing } from '../domain/types.js';
 import { brierVerdict } from '../engine/record.js';
 
+/**
+ * The palette, as xterm-256 codes chosen to match the dashboard's tokens so a
+ * viewer moving between the site and a recording of the CLI sees one product.
+ *
+ * Everything routes through `paint`, which is a no-op when colour is not
+ * supported (a pipe, a CI log, `NO_COLOR`). That keeps rule 2 in the header
+ * honest: colour is a second channel on top of a word, never the only one
+ * carrying the meaning.
+ */
+const C = {
+  gold: 214, // Binance amber. Identity, and money at stake.
+  goldDim: 136,
+  teal: 79, // Safe, read-only, the model's own view.
+  green: 78, // Money gained.
+  red: 210, // Money lost.
+  blue: 111, // Time, and things that have run out of it.
+  ink: 253,
+  muted: 247,
+  ghost: 244,
+  faint: 240,
+  hair: 237, // Rules and box edges.
+  black: 16,
+} as const;
+
+const ESC = '\x1b[';
+const RESET = `${ESC}0m`;
+
+function paint(s: string, fg: number, bg?: number): string {
+  if (!pc.isColorSupported) return s;
+  const head = `${ESC}38;5;${fg}m` + (bg === undefined ? '' : `${ESC}48;5;${bg}m`);
+  return head + s + RESET;
+}
+
+export const ink = (s: string) => paint(s, C.ink);
+export const muted = (s: string) => paint(s, C.muted);
+export const ghost = (s: string) => paint(s, C.ghost);
+export const faint = (s: string) => paint(s, C.faint);
+export const gold = (s: string) => paint(s, C.gold);
+export const teal = (s: string) => paint(s, C.teal);
+export const good = (s: string) => paint(s, C.green);
+export const bad = (s: string) => paint(s, C.red);
+export const cool = (s: string) => paint(s, C.blue);
+
+/** A filled badge: dark text on a solid block, for labels that must be found fast. */
+export const badge = (s: string, bg: number = C.gold) => pc.bold(paint(` ${s} `, C.black, bg));
+export const goldBadge = (s: string) => badge(s, C.gold);
+export const tealBadge = (s: string) => badge(s, C.teal);
+export const redBadge = (s: string) => badge(s, C.red);
+export const blueBadge = (s: string) => badge(s, C.blue);
+export const greenBadge = (s: string) => badge(s, C.green);
+
 export const RULE = '─';
 export const WIDTH = 74;
 
@@ -31,7 +82,7 @@ export const pct = (n: number | null, dp = 1): string =>
   n === null ? '—' : `${(n * 100).toFixed(dp)}%`;
 
 export const money = (n: number): string =>
-  n > 0 ? pc.green(usd(n, true)) : n < 0 ? pc.red(usd(n, true)) : pc.dim(usd(n, true));
+  n > 0 ? good(usd(n, true)) : n < 0 ? bad(usd(n, true)) : ghost(usd(n, true));
 
 export const dim = (s: string) => pc.dim(s);
 export const bold = (s: string) => pc.bold(s);
@@ -59,12 +110,18 @@ export function clip(s: string, n: number): string {
 }
 
 export function rule(width = WIDTH): string {
-  return pc.dim(RULE.repeat(width));
+  return paint(RULE.repeat(width), C.hair);
 }
 
+/**
+ * A section head: a gold bar, the title in caps, and the subtitle that says
+ * what the numbers under it actually are. The bar is the only ornament in the
+ * output, and it exists so a viewer scrubbing a recording can find the section
+ * boundaries without reading a word.
+ */
 export function heading(title: string, subtitle?: string): string {
-  const lines = ['', pc.bold(title.toUpperCase())];
-  if (subtitle) lines.push(pc.dim(subtitle));
+  const lines = ['', gold('▌') + ' ' + pc.bold(ink(title.toUpperCase()))];
+  if (subtitle) lines.push(faint('  ' + subtitle));
   lines.push(rule());
   return lines.join('\n');
 }
@@ -72,8 +129,13 @@ export function heading(title: string, subtitle?: string): string {
 /** The mode banner. Printed on every command so demo data is never ambiguous. */
 export function modeBanner(mode: 'live' | 'demo'): string {
   return mode === 'live'
-    ? pc.green('● LIVE') + pc.dim('  real wallet, real money')
-    : pc.yellow('● DEMO') + pc.dim('  synthetic fixtures · no wallet, no money moved');
+    ? redBadge('● LIVE') + faint('  real wallet, real money')
+    : tealBadge('● DEMO') + faint('  synthetic fixtures · no wallet, no money moved');
+}
+
+/** The wordmark. Solid gold, so the first thing on screen is the product. */
+export function wordmark(): string {
+  return goldBadge('SKIN') + ' ' + faint('skin in the game');
 }
 
 /**
@@ -95,42 +157,44 @@ export function receipt(opts: {
   // The three stamps have different widths, so the question column is sized
   // against the actual stamp rather than a constant — otherwise the right edge
   // of the slip shifts by a character depending on status.
-  const label = ` ${status} `;
+  const label = ` ${status} `; // width including the badge's padding
   const stamp =
     status === 'STAKED'
-      ? pc.bgYellow(pc.black(label))
+      ? badge(status, C.green)
       : status === 'PENDING'
-        ? pc.bgBlue(pc.white(label))
-        : pc.bgRed(pc.white(label));
+        ? badge(status, C.blue)
+        : badge(status, C.red);
 
   const out: string[] = [];
-  out.push(pc.dim('┌' + '┄'.repeat(WIDTH - 2) + '┐'));
+  const bar = (l: string, r: string) => paint(l + '┄'.repeat(WIDTH - 2) + r, C.goldDim);
+  const side_ = paint('┆', C.goldDim);
+  out.push(bar('┌', '┐'));
   out.push(
-    pc.dim('┆ ') +
-      padEnd(pc.bold(clip(question, w - label.length - 2)), w - label.length) +
+    side_ + ' ' +
+      padEnd(pc.bold(ink(clip(question, w - label.length - 2))), w - label.length) +
       stamp +
-      pc.dim(' ┆'),
+      ' ' + side_,
   );
-  out.push(pc.dim('┆ ') + padEnd(pc.dim('side ') + pc.bold(side), w) + pc.dim(' ┆'));
-  out.push(pc.dim('┆') + pc.dim('┄'.repeat(WIDTH - 2)) + pc.dim('┆'));
+  out.push(side_ + ' ' + padEnd(faint('side ') + pc.bold(gold(side)), w) + ' ' + side_);
+  out.push(bar('┆', '┆'));
 
   const row = (k: string, v: string) =>
-    pc.dim('┆ ') + padEnd(pc.dim(k), 22) + padEnd(v, w - 22) + pc.dim(' ┆');
+    side_ + ' ' + padEnd(ghost(k), 22) + padEnd(v, w - 22) + ' ' + side_;
 
-  out.push(row('agent says', pc.bold(pct(sizing.p))));
-  out.push(row('market says', pct(sizing.price)));
-  out.push(row('edge', (sizing.edge > 0 ? pc.green : pc.red)(pct(sizing.edge))));
-  out.push(row('payout odds', `${sizing.odds.toFixed(2)}:1`));
-  out.push(row('full Kelly', pct(sizing.kellyFull)));
-  out.push(row('applied (¼ Kelly)', pct(sizing.kellyApplied)));
-  out.push(row('bound by', sizing.bindingConstraint));
-  out.push(pc.dim('┆') + pc.dim('┄'.repeat(WIDTH - 2)) + pc.dim('┆'));
-  out.push(row('STAKE', amber(pc.bold(usd(sizing.stakeUsdt)))));
-  out.push(pc.dim('┆') + pc.dim('┄'.repeat(WIDTH - 2)) + pc.dim('┆'));
+  out.push(row('agent says', pc.bold(teal(pct(sizing.p)))));
+  out.push(row('market says', muted(pct(sizing.price))));
+  out.push(row('edge', (sizing.edge > 0 ? good : bad)(pct(sizing.edge))));
+  out.push(row('payout odds', muted(`${sizing.odds.toFixed(2)}:1`)));
+  out.push(row('full Kelly', muted(pct(sizing.kellyFull))));
+  out.push(row('applied (¼ Kelly)', muted(pct(sizing.kellyApplied))));
+  out.push(row('bound by', ghost(sizing.bindingConstraint)));
+  out.push(bar('┆', '┆'));
+  out.push(row('STAKE', goldBadge(usd(sizing.stakeUsdt))));
+  out.push(bar('┆', '┆'));
   for (const line of wrap(thesis, w)) {
-    out.push(pc.dim('┆ ') + padEnd(pc.dim(line), w) + pc.dim(' ┆'));
+    out.push(side_ + ' ' + padEnd(faint(line), w) + ' ' + side_);
   }
-  out.push(pc.dim('└' + '┄'.repeat(WIDTH - 2) + '┘'));
+  out.push(bar('└', '┘'));
   return out.join('\n');
 }
 
@@ -163,30 +227,31 @@ export function renderRecord(r: TrackRecord): string {
   out.push(heading('the record', 'computed from settled positions — the agent does not get a vote'));
 
   if (r.calls === 0) {
-    out.push(pc.dim('  No settled calls yet. Nothing to show, and nothing to claim.'));
+    out.push(faint('  No settled calls yet. Nothing to show, and nothing to claim.'));
     out.push(rule());
     return out.join('\n');
   }
 
   const stat = (label: string, value: string, note?: string) =>
-    '  ' + padEnd(pc.dim(label), 20) + padStart(value, 14) + (note ? '  ' + pc.dim(note) : '');
+    '  ' + padEnd(ghost(label), 20) + padStart(value, 14) + (note ? '  ' + faint(note) : '');
 
   out.push(stat('realized PnL', money(r.realizedPnl), `on ${usd(r.totalStaked)} staked`));
-  out.push(stat('return on stake', r.roi === null ? '—' : (r.roi >= 0 ? pc.green : pc.red)(pct(r.roi)),
-  ));
+  out.push(stat('return on stake', r.roi === null ? '—' : (r.roi >= 0 ? good : bad)(pct(r.roi))));
   out.push('');
   out.push(
     stat(
       'Brier score',
-      r.brier === null ? '—' : pc.bold(r.brier.toFixed(3)),
+      // Brier is the number the whole project is judged on, so it is the one
+      // thing on this screen wearing the brand colour.
+      r.brier === null ? '—' : goldBadge(r.brier.toFixed(3)),
       brierVerdict(r.brier, r.scoredCalls) ?? undefined,
     ),
   );
   out.push(stat('', '', `0 perfect · 0.25 = always saying "50%" · lower is better`));
   out.push('');
-  out.push(stat('settled calls', String(r.calls)));
-  out.push(stat('won / lost', `${pc.green(String(r.wins))} / ${pc.red(String(r.losses))}`));
-  out.push(stat('hit rate', pct(r.hitRate)));
+  out.push(stat('settled calls', muted(String(r.calls))));
+  out.push(stat('won / lost', `${good(String(r.wins))}${ghost(' / ')}${bad(String(r.losses))}`));
+  out.push(stat('hit rate', muted(pct(r.hitRate))));
   out.push(rule());
   return out.join('\n');
 }
@@ -199,7 +264,7 @@ export function renderRecord(r: TrackRecord): string {
  * running minimum and maximum, with the zero line marked.
  */
 export function sparkline(values: number[], width = WIDTH - 4): string {
-  if (values.length === 0) return pc.dim('  (no data)');
+  if (values.length === 0) return faint('  (no data)');
   const blocks = '▁▂▃▄▅▆▇█';
   const min = Math.min(0, ...values);
   const max = Math.max(0, ...values);
@@ -212,7 +277,7 @@ export function sparkline(values: number[], width = WIDTH - 4): string {
       Math.max(0, Math.round(((v - min) / span) * (blocks.length - 1))),
     );
     const ch = blocks[idx]!;
-    return v >= 0 ? pc.green(ch) : pc.red(ch);
+    return v >= 0 ? good(ch) : bad(ch);
   });
   return '  ' + chars.join('');
 }
@@ -237,17 +302,17 @@ export function renderSettled(rows: SettledCall[], limit = 12): string {
   out.push(heading('settled calls', `last ${Math.min(limit, rows.length)} of ${rows.length}`));
   out.push(
     '  ' +
-      padEnd(pc.dim('market'), 36) +
-      padStart(pc.dim('said'), 7) +
-      padStart(pc.dim('result'), 9) +
-      padStart(pc.dim('pnl'), 10),
+      padEnd(faint('market'), 36) +
+      padStart(teal('said'), 7) +
+      padStart(faint('result'), 9) +
+      padStart(faint('pnl'), 10),
   );
   for (const s of rows.slice(-limit)) {
-    const result = s.outcome === 'WON' ? pc.green('WON') : pc.red('LOST');
+    const result = s.outcome === 'WON' ? good('WON') : bad('LOST');
     out.push(
       '  ' +
-        padEnd(clip(s.question, 34), 36) +
-        padStart(s.conviction === null ? pc.dim('—') : pct(s.conviction, 0), 7) +
+        padEnd(muted(clip(s.question, 34)), 36) +
+        padStart(s.conviction === null ? ghost('—') : teal(pct(s.conviction, 0)), 7) +
         padStart(result, 9) +
         padStart(money(s.pnl), 10),
     );
@@ -263,46 +328,46 @@ export function renderCalibration(r: TrackRecord): string {
     heading('calibration', 'of the calls it made at X% confidence, how many came in?'),
   );
   if (r.calibration.length === 0) {
-    out.push(pc.dim('  No journalled convictions yet — nothing to calibrate.'));
+    out.push(faint('  No journalled convictions yet — nothing to calibrate.'));
     out.push(rule());
     return out.join('\n');
   }
   out.push(
     '  ' +
-      padEnd(pc.dim('bucket'), 12) +
-      padEnd(pc.dim('n'), 5) +
-      padEnd(pc.dim('said'), 8) +
-      padEnd(pc.dim('actual'), 9) +
-      pc.dim('  reliability'),
+      padEnd(faint('bucket'), 12) +
+      padEnd(faint('n'), 5) +
+      padEnd(teal('said'), 8) +
+      padEnd(faint('actual'), 9) +
+      faint('  reliability'),
   );
   for (const b of r.calibration) {
     const barWidth = 24;
     const said = Math.round(b.meanConviction * barWidth);
     const actual = Math.round(b.observedRate * barWidth);
     const bar = Array.from({ length: barWidth }, (_, i) => {
-      if (i < Math.min(said, actual)) return pc.green('█');
-      if (i < said) return pc.yellow('▒'); // claimed but not delivered
-      if (i < actual) return pc.cyan('▒'); // delivered beyond the claim
-      return pc.dim('·');
+      if (i < Math.min(said, actual)) return good('█');
+      if (i < said) return gold('▒'); // claimed but not delivered
+      if (i < actual) return cool('▒'); // delivered beyond the claim
+      return paint('·', C.hair);
     }).join('');
     out.push(
       '  ' +
-        padEnd(`${(b.lower * 100).toFixed(0)}–${(b.upper * 100).toFixed(0)}%`, 12) +
-        padEnd(String(b.n), 5) +
-        padEnd(pct(b.meanConviction, 0), 8) +
-        padEnd(pct(b.observedRate, 0), 9) +
+        padEnd(muted(`${(b.lower * 100).toFixed(0)}–${(b.upper * 100).toFixed(0)}%`), 12) +
+        padEnd(ghost(String(b.n)), 5) +
+        padEnd(teal(pct(b.meanConviction, 0)), 8) +
+        padEnd(muted(pct(b.observedRate, 0)), 9) +
         '  ' +
         bar,
     );
   }
   out.push(
-    pc.dim('  ') +
-      pc.green('█') +
-      pc.dim(' delivered  ') +
-      pc.yellow('▒') +
-      pc.dim(' overclaimed  ') +
-      pc.cyan('▒') +
-      pc.dim(' underclaimed'),
+    '  ' +
+      good('█') +
+      faint(' delivered  ') +
+      gold('▒') +
+      faint(' overclaimed  ') +
+      cool('▒') +
+      faint(' underclaimed'),
   );
   out.push(rule());
   return out.join('\n');

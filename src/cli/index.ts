@@ -48,7 +48,17 @@ import {
 import type { Budget, StakeVerdict } from '../domain/types.js';
 import {
   heading,
+  cool,
+  faint,
+  good,
+  ghost,
+  gold,
+  goldBadge,
+  ink,
   modeBanner,
+  muted,
+  teal,
+  wordmark,
   money,
   padEnd,
   padStart,
@@ -190,21 +200,27 @@ async function cmdRecord(client: PredictionClient, flags: Flags) {
     const staked = open.reduce((a, p) => a + p.cost, 0);
     const payout = open.reduce((a, p) => a + p.shares, 0);
     console.log(
-      heading('open now', `${open.length} position(s) · ${usd(staked)} committed · pays ${usd(payout)} if every one wins`),
+      heading(
+        'open now',
+        `${open.length} position(s) · ${usd(staked)} committed · pays ${usd(payout)} if every one wins`,
+      ),
     );
     console.log(
-      '  ' + pc.dim(padEnd('market', 42) + padEnd('side', 6) + padEnd('said', 8) + padEnd('paid', 8) + 'settles'),
+      '  ' +
+        faint(padEnd('market', 42) + padEnd('side', 6)) +
+        teal(padEnd('said', 8)) +
+        faint(padEnd('paid', 8) + 'settles'),
     );
     for (const p of open) {
       const said = p.conviction ?? journal.get(p.tokenId);
       console.log(
         '  ' +
-          padEnd(clip(p.question, 40), 42) +
-          padEnd(pc.bold(p.side), 6) +
+          padEnd(muted(clip(p.question, 40)), 42) +
+          padEnd(pc.bold(ink(p.side)), 6) +
           // The adapter cannot know what the agent believed; the journal can.
-          padEnd(said === undefined ? pc.dim('—') : pct(said, 0), 8) +
-          padEnd(pct(p.avgPrice, 0), 8) +
-          pc.dim(untilLabel(p.endDate)),
+          padEnd(said === undefined ? ghost('—') : teal(pct(said, 0)), 8) +
+          padEnd(muted(pct(p.avgPrice, 0)), 8) +
+          cool(untilLabel(p.endDate)),
       );
     }
     console.log(rule());
@@ -231,7 +247,9 @@ async function cmdRecord(client: PredictionClient, flags: Flags) {
  * whose order you have to remember.
  */
 function shape(side: string, price: number, conviction: number): string {
-  return `${pc.bold(side)} @ ${pct(price, 0)}` + pc.dim(` · fair ${pct(conviction, 0)}`);
+  return (
+    `${pc.bold(ink(side))} @ ${muted(pct(price, 0))}` + faint(' · fair ') + teal(pct(conviction, 0))
+  );
 }
 
 async function cmdScan(
@@ -251,7 +269,9 @@ async function cmdScan(
     ),
   );
   console.log(
-    pc.dim('  side it would buy @ price it would pay · fair = what the model thinks it is worth'),
+    faint('  side it would buy @ price it would pay · ') +
+      teal('fair') +
+      faint(' = what the model thinks it is worth'),
   );
 
   for (const m of markets) {
@@ -259,16 +279,18 @@ async function cmdScan(
     if (soon !== null) {
       console.log(
         '  ' +
-          padEnd(pc.dim('late'), 10) +
-          padEnd(clip(m.title, 40), 42) +
-          pc.dim(`resolves in ${Math.max(0, Math.round(soon / 1000))}s · too soon to act on`),
+          padEnd(cool('late'), 10) +
+          padEnd(muted(clip(m.title, 40)), 42) +
+          faint(`resolves in ${Math.max(0, Math.round(soon / 1000))}s · too soon to act on`),
       );
       continue;
     }
 
     const opinion = await formOpinion(m, source);
     if (!opinion.ok) {
-      console.log('  ' + padEnd(pc.dim('skip'), 10) + padEnd(clip(m.title, 40), 42) + pc.dim(opinion.reason));
+      console.log(
+        '  ' + padEnd(ghost('skip'), 10) + padEnd(muted(clip(m.title, 40)), 42) + faint(opinion.reason),
+      );
       continue;
     }
     const o = opinion.opinion;
@@ -291,10 +313,10 @@ async function cmdScan(
       verdicts.push({ kind: 'declined', call, reason: sized.reason, detail: sized.detail });
       console.log(
         '  ' +
-          padEnd(pc.red('pass'), 10) +
-          padEnd(clip(m.title, 40), 42) +
+          padEnd(ghost('pass'), 10) +
+          padEnd(muted(clip(m.title, 40)), 42) +
           padEnd(shape(o.side, o.marketPrice, o.conviction), 30) +
-          pc.dim(sized.reason),
+          faint(sized.reason),
       );
       continue;
     }
@@ -318,14 +340,14 @@ async function cmdScan(
       verdicts.push({ kind: 'declined', call, reason: 'stale-price', detail });
       console.log(
         '  ' +
-          padEnd(pc.red('pass'), 10) +
-          padEnd(clip(m.title, 40), 42) +
+          padEnd(ghost('pass'), 10) +
+          padEnd(muted(clip(m.title, 40)), 42) +
           padEnd(
-            `${pc.bold(o.side)} @ ${pc.dim(pct(o.marketPrice, 0))} → ${pc.yellow(pct(probe.price, 0))}` +
-              pc.dim(` · fair ${pct(o.conviction, 0)}`),
+            `${pc.bold(ink(o.side))} @ ${faint(pct(o.marketPrice, 0))} ${ghost('→')} ${gold(pct(probe.price, 0))}` +
+              faint(` · fair ${pct(o.conviction, 0)}`),
             30,
           ) +
-          pc.dim('stale-price'),
+          gold('stale-price'),
       );
       continue;
     }
@@ -334,15 +356,31 @@ async function cmdScan(
     budget.spent += priced.sizing.stakeUsdt;
     console.log(
       '  ' +
-        padEnd(pc.yellow('BET'), 10) +
-        padEnd(clip(m.title, 40), 42) +
+        padEnd(goldBadge('BET'), 10) +
+        padEnd(pc.bold(ink(clip(m.title, 40))), 42) +
         padEnd(shape(o.side, probe.price, o.conviction), 30) +
-        pc.yellow(usd(priced.sizing.stakeUsdt)),
+        pc.bold(gold(usd(priced.sizing.stakeUsdt))),
     );
   }
   console.log(rule());
 
+  // Say the outcome as a sentence. A column of `pass` reads as the tool
+  // failing to find anything; the same information counted out loud reads as
+  // the tool doing its job, which is what it is.
   const staked = verdicts.filter((v) => v.kind === 'staked');
+  const declined = verdicts.length - staked.length;
+  const committed = staked.reduce((a, v) => a + (v.kind === 'staked' ? v.sizing.stakeUsdt : 0), 0);
+  const skipped = markets.length - verdicts.length;
+  const parts = [
+    staked.length > 0
+      ? goldBadge(`${staked.length} cleared`) + ' ' + pc.bold(gold(usd(committed)))
+      : null,
+    declined > 0 ? ghost(`${declined} refused`) : null,
+    skipped > 0 ? faint(`${skipped} not priced`) : null,
+  ].filter(Boolean);
+  console.log('  ' + parts.join(faint('  ·  ')));
+  console.log(rule());
+
   if (staked.length === 0) {
     console.log(
       pc.dim(
@@ -383,9 +421,12 @@ async function cmdStake(
   const total = staked.reduce((a, v) => a + v.sizing.stakeUsdt, 0);
   console.log('');
   console.log(
-    pc.bold(`  About to commit ${pc.yellow(usd(total))} of real money across ${staked.length} call(s).`),
+    '  ' +
+      pc.bold(ink('About to commit ')) +
+      goldBadge(usd(total)) +
+      pc.bold(ink(` of real money across ${staked.length} call(s).`)),
   );
-  console.log(pc.dim('  This is irreversible. Losing calls do not come back.'));
+  console.log(faint('  This is irreversible. Losing calls do not come back.'));
 
   const ok = await confirm(`  Type ${pc.bold('stake')} to proceed: `, 'stake', flags.yes);
   if (!ok) {
@@ -423,12 +464,13 @@ async function cmdStake(
       if (!regated.ok) {
         console.log(
           '  ' +
-            pc.yellow('~') +
-            ` ${clip(v.call.question, 40)} · re-priced ${pct(v.call.marketPrice, 0)} → ` +
-            pc.yellow(pct(paid, 0)) +
-            pc.dim(` · ${regated.reason}`),
+            gold('~') +
+            ' ' + muted(clip(v.call.question, 40)) +
+            faint(' · re-priced ') + faint(pct(v.call.marketPrice, 0)) + ghost(' → ') +
+            pc.bold(gold(pct(paid, 0))) +
+            faint(` · ${regated.reason}`),
         );
-        console.log(pc.dim('    Not placed. The edge that justified this call is gone.'));
+        console.log(faint('    Not placed. The edge that justified this call is gone.'));
         continue;
       }
 
@@ -453,8 +495,10 @@ async function cmdStake(
 
       console.log(
         '  ' +
-          pc.green('✓') +
-          ` ${clip(v.call.question, 44)} · ${usd(v.sizing.stakeUsdt)} · order ${order.orderId ?? 'submitted'}`,
+          good('✓') +
+          ' ' + ink(clip(v.call.question, 44)) +
+          faint(' · ') + pc.bold(gold(usd(v.sizing.stakeUsdt))) +
+          faint(` · order ${order.orderId ?? 'submitted'}`),
       );
     } catch (err) {
       // Reported verbatim, as the wallet skill's policy requires.
@@ -695,7 +739,7 @@ async function main() {
 
   if (!flags.json) {
     console.log('');
-    console.log('  ' + pc.bold('SKIN') + pc.dim('  skin in the game') + '   ' + modeBanner(client.mode));
+    console.log('  ' + wordmark() + '   ' + modeBanner(client.mode));
   }
 
   // Doctor runs before the sign-in guard on purpose: "you are not signed in"
