@@ -18,6 +18,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { LiveClient } from '../src/adapters/baw.js';
+import { formOpinion } from '../src/engine/analyst.js';
+import { StaticSource } from '../src/adapters/marketdata.js';
 
 /** Response bodies exactly as the skill's reference documents them. */
 const RESPONSES: Record<string, unknown> = {
@@ -39,6 +41,52 @@ const RESPONSES: Record<string, unknown> = {
     quotaLeft: 50000,
   },
   // A bare array, one row per chain, with numbers as strings.
+  // One topic, nested markets, epoch endDate — the live shape of
+  // `prediction market list`.
+  'prediction market': {
+    marketTopics: [
+      {
+        marketTopicId: 5433296,
+        marketVariant: 'CRYPTO_UP_DOWN',
+        symbol: 'BTCUSDT',
+        timeframe: '5 min',
+        endDate: 1788864600000,
+        title: 'BTC Up or Down 5m',
+        l1Categories: ['crypto', 'main-up-down'],
+        variantData: { type: 'CRYPTO_UP_DOWN', startPrice: 78670.105, endPrice: null },
+        markets: [
+          {
+            marketId: 10228610,
+            title: 'Bitcoin Up or Down - September 8, 6:45AM-6:50AM ET',
+            tradingStatus: 'OPEN',
+            outcomes: [
+              { name: 'Up', price: 0.59, index: 0, tokenId: '137733' },
+              { name: 'Down', price: 0.41, index: 1, tokenId: '756271' },
+            ],
+          },
+        ],
+      },
+      {
+        marketTopicId: 5235735,
+        marketVariant: 'DEFAULT',
+        endDate: 1790827200000,
+        title: 'What price will Bitcoin hit in September?',
+        l1Categories: ['crypto'],
+        variantData: null,
+        markets: [
+          {
+            marketId: 9504266,
+            title: '↑ 82,500',
+            tradingStatus: 'OPEN',
+            outcomes: [
+              { name: 'Yes', price: 0.776, tokenId: '950a' },
+              { name: 'No', price: 0.224, tokenId: '950b' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
   'wallet balance': [
     { symbol: 'USDT', binanceChainId: 'CT_501', balance: '900.00', value: '900.00' },
     { symbol: 'USDT', binanceChainId: '56', balance: '14.25', value: '14.25' },
@@ -89,6 +137,61 @@ describe('baw adapter', () => {
     assert.equal(s.dailyRemaining, 32);
     assert.equal(s.dailyLimit, 40);
     assert.equal(s.predictionEnabled, true);
+  });
+
+  test('topics are flattened into the markets they contain', async () => {
+    // The regression: outcome tokens live on the nested `markets` array, not
+    // on the topic. Reading them at the topic level found none, every market
+    // was dropped as untradable, and `scan --live` printed an empty book.
+    const ms = await new LiveClient({ bin }).markets({ limit: 5 });
+    assert.equal(ms.length, 2);
+
+    const up = ms[0]!;
+    assert.equal(up.marketTopicId, '5433296');
+    assert.equal(up.marketId, '10228610');
+    assert.equal(up.outcomes.length, 2);
+    assert.equal(up.outcomes[0]!.label, 'Up');
+    assert.equal(up.outcomes[0]!.price, 0.59);
+
+    // Symbol and strike come from the topic, not from parsing the title.
+    assert.equal(up.symbol, 'BTCUSDT');
+    assert.equal(up.referencePrice, 78670.105);
+    assert.equal(up.variant, 'CRYPTO_UP_DOWN');
+  });
+
+  test('an epoch-millisecond endDate becomes a usable horizon', async () => {
+    // `Date.parse('1788864600000')` is NaN, so every live market was refused
+    // for "no usable resolution time" and the agent had nothing to say.
+    const ms = await new LiveClient({ bin }).markets({ limit: 5 });
+    const end = ms[0]!.endDate;
+    assert.equal(end, new Date(1788864600000).toISOString());
+    assert.ok(Number.isFinite(Date.parse(end!)));
+  });
+
+  test('a fragment title is prefixed with its topic so it reads standalone', async () => {
+    const ms = await new LiveClient({ bin }).markets({ limit: 5 });
+    assert.match(ms[1]!.title, /Bitcoin hit in September/);
+  });
+
+  test('a barrier market is refused, not mispriced', async () => {
+    // "Will X hit $K" resolves on touching the level. A terminal model
+    // understates that by roughly half, which would read as a large edge on
+    // every one of them — the most expensive way to be wrong here.
+    const ms = await new LiveClient({ bin }).markets({ limit: 5 });
+    const source = new StaticSource({
+      BTCUSDT: {
+        symbol: 'BTCUSDT', spot: 78_700, annualVol: 0.5,
+        samples: 200, rail: 'local', interval: '1m',
+      },
+    });
+
+    const barrier = await formOpinion(ms[1]!, source);
+    assert.equal(barrier.ok, false);
+    assert.match(barrier.ok ? '' : barrier.reason, /Barrier question/);
+
+    // The up/down market beside it is still priced.
+    const priced = await formOpinion(ms[0]!, source, Date.parse('2026-09-08T10:00:00Z'));
+    assert.equal(priced.ok, true);
   });
 
   test('USDT balance is the BSC row, not whichever chain came first', async () => {

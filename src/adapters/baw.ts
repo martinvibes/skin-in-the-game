@@ -96,6 +96,32 @@ function pickArray(payload: unknown, ...keys: string[]): unknown[] {
   return [];
 }
 
+/**
+ * Normalise a timestamp to ISO-8601.
+ *
+ * `prediction market list` returns `endDate` as epoch milliseconds, which
+ * `Date.parse` cannot read: the horizon came back `NaN`, so every live market
+ * was refused for "no usable resolution time" and the agent had nothing to say
+ * about anything. Both spellings are accepted here so the engine can keep
+ * assuming ISO.
+ */
+function toIsoTime(o: unknown, ...keys: string[]): string | undefined {
+  if (!isRec(o)) return undefined;
+  for (const k of keys) {
+    const v = o[k];
+    if (typeof v === 'number' && Number.isFinite(v)) return new Date(v).toISOString();
+    if (typeof v === 'string' && v.trim() !== '') {
+      const t = v.trim();
+      // 10 digits is seconds since the epoch, 13 is milliseconds.
+      if (/^\d{10,}$/.test(t)) {
+        return new Date(t.length <= 10 ? Number(t) * 1000 : Number(t)).toISOString();
+      }
+      if (Number.isFinite(Date.parse(t))) return t;
+    }
+  }
+  return undefined;
+}
+
 /** Normalise an outcome label to a side. Unknown labels default to YES. */
 function toSide(label: string | null): Side {
   if (!label) return 'YES';
@@ -280,7 +306,9 @@ export class LiveClient implements PredictionClient {
           '--limit', limit,
         ];
     const d = await runBaw(args, this.#opts);
-    return pickArray(d, 'markets', 'topics').map(toMarket).filter(hasTradableOutcome);
+    return pickArray(d, 'marketTopics', 'markets', 'topics')
+      .flatMap(toMarkets)
+      .filter(hasTradableOutcome);
   }
 
   async lastPrice(marketId: string): Promise<number | null> {
@@ -309,7 +337,7 @@ export class LiveClient implements PredictionClient {
       question: str(r, 'marketTitle', 'title', 'question', 'name') ?? 'Unknown market',
       payout:
         num(r, 'payout', 'redeemableAmount', 'claimableAmount', 'value', 'amount') ?? 0,
-      settledAt: str(r, 'settledTime', 'settledAt', 'endDate', 'updateTime') ?? undefined,
+      settledAt: toIsoTime(r, 'settledTime', 'settledAt', 'endDate', 'updateTime'),
     })).filter((u) => u.tokenId !== '');
   }
 
@@ -370,18 +398,61 @@ export class LiveClient implements PredictionClient {
 // Row mappers
 // ---------------------------------------------------------------------------
 
-function toMarket(r: unknown): Market {
-  const outcomes = pickArray(
-    isRec(r) ? (r['outcomes'] ?? r['tokens'] ?? r['options'] ?? []) : [],
-  ).map(toOutcome);
-  return {
-    marketTopicId: str(r, 'marketTopicId', 'topicId', 'id') ?? '',
-    marketId: str(r, 'marketId', 'id', 'marketTopicId') ?? '',
-    title: str(r, 'title', 'question', 'name', 'marketTitle') ?? 'Untitled market',
-    category: str(r, 'l1Category', 'category', 'categoryName') ?? 'unknown',
-    endDate: str(r, 'endDate', 'endTime', 'resolutionTime', 'closeTime') ?? undefined,
-    outcomes,
+/**
+ * Flatten one market *topic* into the markets it actually contains.
+ *
+ * Binance nests: a topic ("What price will Bitcoin hit in September?") holds an
+ * array of markets, each with its own id, title and outcome tokens, while the
+ * symbol, reference price and resolution time live one level up on the topic.
+ * Reading outcomes at the topic level, as this did, found none — so every live
+ * market was silently dropped and `scan --live` printed an empty book.
+ *
+ * A topic with no nested array is treated as its own single market, which keeps
+ * this working against the flatter shape older builds returned.
+ */
+function toMarkets(t: unknown): Market[] {
+  if (!isRec(t)) return [];
+
+  const topicId = str(t, 'marketTopicId', 'topicId', 'id') ?? '';
+  const endDate = toIsoTime(t, 'endDate', 'endTime', 'resolutionTime');
+  const variantData = isRec(t['variantData']) ? t['variantData'] : null;
+  const topicTitle = str(t, 'title', 'question', 'name') ?? 'Untitled market';
+
+  const shared = {
+    marketTopicId: topicId,
+    category:
+      str(pickArray(t['l1Categories'] ?? [])[0], 'name') ??
+      (Array.isArray(t['l1Categories']) ? String(t['l1Categories'][0] ?? '') : '') ??
+      str(t, 'l1Category', 'category', 'categoryName') ??
+      'unknown',
+    endDate,
+    variant: str(t, 'marketVariant', 'topicType') ?? undefined,
+    symbol: str(t, 'symbol') ?? str(variantData, 'priceFeedSymbol') ?? undefined,
+    referencePrice: num(variantData, 'startPrice', 'referencePrice') ?? undefined,
   };
+
+  const nested = pickArray(t['markets'] ?? []);
+  const rows = nested.length > 0 ? nested : [t];
+
+  return rows.map((m) => {
+    const own = str(m, 'title', 'question', 'name', 'marketTitle') ?? topicTitle;
+    // Legs of a multi-outcome topic are titled as fragments ("↑ 82,500",
+    // "September 30, 2026?") and mean nothing on their own, while a topic with
+    // one market usually repeats a full question. Prefixing the short ones
+    // keeps the receipt and the refusal reason readable without making the
+    // long ones say everything twice.
+    const fragment = nested.length > 1 || own.length < 32;
+    const title = fragment && own !== topicTitle ? `${topicTitle} · ${own}` : own;
+
+    return {
+      ...shared,
+      marketId: str(m, 'marketId', 'id') ?? topicId,
+      title,
+      outcomes: pickArray(
+        isRec(m) ? (m['outcomes'] ?? m['tokens'] ?? m['options'] ?? []) : [],
+      ).map(toOutcome),
+    };
+  });
 }
 
 function toOutcome(r: unknown): OutcomeToken {
@@ -409,7 +480,7 @@ function toOpenPosition(r: unknown): OpenPosition {
     cost,
     avgPrice: num(r, 'avgPrice', 'averagePrice', 'entryPrice') ?? (shares > 0 ? cost / shares : 0),
     conviction: null, // filled in from the local journal by the engine
-    endDate: str(r, 'endDate', 'endTime', 'resolutionTime') ?? undefined,
+    endDate: toIsoTime(r, 'endDate', 'endTime', 'resolutionTime'),
   };
 }
 
@@ -434,7 +505,8 @@ function toSettled(r: unknown): SettledCall {
     pnl,
     conviction: null, // joined from the journal by the engine
     settledAt:
-      str(r, 'settledTime', 'settledAt', 'endDate', 'updateTime') ?? new Date().toISOString(),
+      toIsoTime(r, 'settledTime', 'settledAt', 'endDate', 'updateTime') ??
+      new Date().toISOString(),
     claimed: payout > 0,
   };
 }

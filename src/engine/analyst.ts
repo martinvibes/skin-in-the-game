@@ -149,6 +149,31 @@ export function parseClaim(title: string): ParsedClaim | null {
 }
 
 /**
+ * Build a priceable claim for a market, preferring Binance's own metadata.
+ *
+ * `CRYPTO_UP_DOWN` topics carry `symbol` and `variantData.startPrice`
+ * explicitly, which is strictly better than recovering them from prose: the
+ * symbol is unambiguous, and the start price is the level the market actually
+ * settles against rather than our guess of it. Title parsing remains the
+ * fallback for every other shape.
+ */
+export function claimFor(market: Market): ParsedClaim | null {
+  const symbol = market.symbol?.trim().toUpperCase();
+  if (symbol && /^[A-Z]{2,10}USDT$/.test(symbol)) {
+    const asset = symbol.replace(/USDT$/, '');
+    return {
+      symbol,
+      asset,
+      // An up/down market is "above the price it opened at", so the reference
+      // price is the strike. Absent one, fall back to spot at call time.
+      strike: market.referencePrice ?? null,
+      direction: 'above',
+    };
+  }
+  return parseClaim(market.title);
+}
+
+/**
  * Pull a dollar threshold out of a title.
  *
  * Handles `$110,000`, `110k`, `$110K`, `110000`. Returns null when there is no
@@ -223,7 +248,23 @@ export async function formOpinion(
   source: MarketDataSource,
   now = Date.now(),
 ): Promise<OpinionResult> {
-  const claim = parseClaim(market.title);
+  // "Will X hit $K by T" resolves true if the price *touches* K at any point
+  // before expiry, not just if it finishes there. For a driftless walk the
+  // first-passage probability is close to twice the terminal one (reflection
+  // principle), so pricing these with P(S_T > K) would understate them by
+  // roughly half and hand the agent a large fake edge on every one. The model
+  // is terminal, so it declines; the arrow-prefixed legs Binance uses for
+  // these ("↑ 82,500") are the same question in shorter form.
+  if (/\bhit\b|\btouch\b|\bfirst\b|[↑↓]/u.test(market.title)) {
+    return {
+      ok: false,
+      reason:
+        'Barrier question (resolves on touching the level, not on closing there). ' +
+        'This model prices terminal probability only.',
+    };
+  }
+
+  const claim = claimFor(market);
   if (!claim) {
     return {
       ok: false,
@@ -242,7 +283,10 @@ export async function formOpinion(
   }
 
   // A market with no explicit threshold is an "up or down from here" market:
-  // the strike is spot at the moment the call is made.
+  // the strike is spot at the moment the call is made. When Binance gives us
+  // the window's own start price we use that instead — an up/down market is
+  // measured against where it opened, not against where spot happens to be
+  // when the scan runs, and by mid-window those differ enough to matter.
   const strike = claim.strike ?? obs.spot;
 
   const pAbove = probabilityAbove(obs.spot, strike, obs.annualVol, years);

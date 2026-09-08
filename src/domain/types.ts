@@ -49,6 +49,24 @@ export interface Market {
   endDate?: string;
   /** The tradable outcome tokens for this market. */
   outcomes: OutcomeToken[];
+
+  /**
+   * Binance's own family for the market, e.g. `CRYPTO_UP_DOWN` or `DEFAULT`.
+   * Worth carrying because it says which questions we can price without
+   * having to infer it back out of the title.
+   */
+  variant?: string;
+  /**
+   * The spot symbol the market resolves against, when Binance names one
+   * (`BTCUSDT`). Authoritative, unlike guessing the asset from the title.
+   */
+  symbol?: string;
+  /**
+   * The price the outcome is measured against. For an up/down market this is
+   * the start price Chainlink or Binance recorded when the window opened, and
+   * it is the strike the model needs — not spot at the time of the scan.
+   */
+  referencePrice?: number;
 }
 
 /** One ERC-1155 outcome token within a market. */
