@@ -247,7 +247,7 @@ export async function cmdDoctor(
   // -- report ---------------------------------------------------------------
 
   console.log('');
-  console.log(pc.bold('  WALLET DOCTOR'));
+  console.log(gold('▌') + ' ' + pc.bold(ink('WALLET DOCTOR')));
   console.log(faint('  every read-only call the agent makes, and what parsed out of it'));
   console.log(rule());
 
