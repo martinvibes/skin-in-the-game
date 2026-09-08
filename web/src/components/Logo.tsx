@@ -94,7 +94,7 @@ export function Logo({
   return (
     <button
       onClick={onClick}
-      className={`group flex items-center gap-2.5 text-ink ${className}`}
+      className={`group flex items-center gap-1.5 text-ink ${className}`}
       aria-label="Skin home"
     >
       {/* Half a turn on hover puts the fill on the other side: the same square,

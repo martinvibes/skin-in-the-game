@@ -739,7 +739,7 @@ function Footer({ data }: { data: Payload }) {
     <Act theme="dark" className="!pb-16 !pt-10 md:!pb-20 md:!pt-12">
       <div className="flex flex-wrap items-end justify-between gap-8 border-t pt-10 hair">
         <div className="max-w-md">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5">
             <Mark size={22} />
             <p className="font-display text-xl font-semibold tracking-[-0.045em] text-ink">Skin</p>
           </div>
