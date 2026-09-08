@@ -106,6 +106,41 @@ export function roundDeep<T>(value: T, places: number): T {
  * mutates it — so a later market can legitimately be refused for
  * `budget-exhausted`, and the trace shows that happening.
  */
+/**
+ * Confirm a call's price against a real quote before believing in it.
+ *
+ * A market's listed price is its last *traded* price. On a thin five-minute
+ * book that print can be minutes old and wrong by tens of points: a BNB coin
+ * flip listed at 3% quoted at 53% seconds later. An "edge" measured against
+ * that number is not an edge, it is a stale print, and sizing on it is exactly
+ * how a disciplined system talks itself into a random bet.
+ *
+ * So a call that survives the cheap gates is re-priced against a quote for the
+ * size we actually mean to buy, and kept only if the edge survives the price we
+ * would really pay. The quote is a read: it commits nothing and costs nothing.
+ * If the venue cannot quote it, we say so rather than substituting a guess.
+ */
+export async function probePrice(
+  client: PredictionClient,
+  call: { tokenId: string; marketTopicId: string },
+  amount: number,
+  listed: number,
+): Promise<{ price: number; quoted: boolean }> {
+  try {
+    const q = await client.quote({
+      tokenId: call.tokenId,
+      marketTopicId: call.marketTopicId,
+      amount,
+    });
+    const p = q.averagePrice;
+    return Number.isFinite(p) && p > 0 && p < 1
+      ? { price: p, quoted: true }
+      : { price: listed, quoted: false };
+  } catch {
+    return { price: listed, quoted: false };
+  }
+}
+
 export async function scanMarkets(
   client: PredictionClient,
   source: MarketDataSource,
@@ -161,9 +196,32 @@ export async function scanMarkets(
       continue;
     }
 
-    budget.spent += sized.sizing.stakeUsdt;
-    staked += sized.sizing.stakeUsdt;
-    steps.push({ ...view, verdict: 'staked', detail: null, sizing: sized.sizing });
+    // The cheap gates passed on the listed price. Now find out what the price
+    // actually is, and make the call answer for that one instead.
+    const probe = await probePrice(
+      client,
+      { tokenId: o.tokenId, marketTopicId: m.marketTopicId },
+      sized.sizing.stakeUsdt,
+      o.marketPrice,
+    );
+    const priced = probe.quoted
+      ? sizeStake(o.conviction, probe.price, bankroll, budget)
+      : sized;
+    const repriced = { ...view, marketPrice: probe.price, edge: o.conviction - probe.price };
+    if (!priced.ok) {
+      steps.push({
+        ...repriced,
+        verdict: 'stale-price',
+        detail:
+          `Listed at ${(o.marketPrice * 100).toFixed(0)}%, quotes at ` +
+          `${(probe.price * 100).toFixed(0)}%. ${priced.detail}`,
+      });
+      continue;
+    }
+
+    budget.spent += priced.sizing.stakeUsdt;
+    staked += priced.sizing.stakeUsdt;
+    steps.push({ ...repriced, verdict: 'staked', detail: null, sizing: priced.sizing });
   }
 
   return {

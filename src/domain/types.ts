@@ -133,7 +133,8 @@ export type DeclineReason =
   | 'below-minimum'    // Kelly size rounds below the venue minimum
   | 'budget-exhausted' // per-run or wallet daily limit reached
   | 'no-price'         // market has no last-trade price to measure against
-  | 'conviction-bounds'; // conviction outside the engine's admissible range
+  | 'conviction-bounds' // conviction outside the engine's admissible range
+  | 'stale-price';     // the listed price was a stale print; the real quote kills the edge
 
 /** Stake sizing output — every intermediate is kept so the UI can show its work. */
 export interface Sizing {

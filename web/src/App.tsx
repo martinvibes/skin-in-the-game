@@ -610,6 +610,72 @@ const STAGES: Array<[string, string]> = [
   ['settle', 'The market resolves. Winnings are redeemed. The record updates itself.'],
 ];
 
+/**
+ * The three ways into the system, and the fact that only one of them moves
+ * money. Stated rather than merely enacted: a reader who has just clicked
+ * `stake` in the console above is owed a plain answer about what that button
+ * did, and the asymmetry is the whole security argument in one row.
+ */
+const DOORS: Array<{ who: string; what: string; can: string; spends: boolean }> = [
+  {
+    who: 'this page',
+    what: 'anyone on the internet',
+    can: 'A static build reading one JSON file. No server behind it, no key, no wallet session. The console replays a run the CLI already made and recorded; its buttons move a state machine. Click every one of them and the balance does not change.',
+    spends: false,
+  },
+  {
+    who: 'the mcp server',
+    what: 'any agent that connects',
+    can: 'Eight tools: read the record, scan the book, ask for an opinion, get a costed proposal. There is deliberately no skin_stake. An agent can argue for a bet, size it, and hand back the exact command to run. It cannot place the order.',
+    spends: false,
+  },
+  {
+    who: 'the cli',
+    what: 'one operator, at a terminal',
+    can: 'Holds the signed-in Agentic Wallet session. Prints the receipt, then waits for the word stake to be typed. Re-prices the call against the real quote a moment before the order goes out, and abandons it if the edge that justified it has gone.',
+    spends: true,
+  },
+];
+
+/**
+ * The two rails, and what each command on them actually does.
+ *
+ * A reader who wants to try this needs to know two things before typing
+ * anything: which commands are safe on a laptop with no wallet, and which one
+ * is the one that spends. Listing them together, with the money command marked
+ * in the same accent the boundary section uses, answers both in one glance.
+ */
+const RAILS: Array<{
+  rail: string;
+  note: string;
+  spends: boolean;
+  rows: Array<[string, string]>;
+}> = [
+  {
+    rail: 'demo',
+    note: 'Fully offline, synthetic fixtures. No wallet, no install, nothing to lose. Every number on this page came from this rail.',
+    spends: false,
+    rows: [
+      ['skin record --demo', 'The track record: Brier score, calibration, equity curve.'],
+      ['skin scan --demo', 'Opinions and refusals, each one named. Commits nothing.'],
+      ['skin stake --demo', 'Receipts and the typed confirmation, with nothing sent.'],
+      ['skin claim --demo', 'Sweeps settled wins that were never redeemed.'],
+    ],
+  },
+  {
+    rail: 'live',
+    note: 'Needs npm i -g @binance/agentic-wallet, then baw auth signin to pair the Agentic Wallet with the Binance app.',
+    spends: true,
+    rows: [
+      ['skin doctor --live', 'Wallet, session, prediction quota and balance, before anything is risked.'],
+      ['skin scan --live', 'The real book, re-priced against real quotes. Still commits nothing.'],
+      ['skin stake --live', 'The only command that can spend. Prints receipts, waits for the word.'],
+      ['skin claim --live', 'Redeems settled wins back to the wallet.'],
+      ['skin mcp', 'Serves the read-only tools to an agent over stdio.'],
+    ],
+  },
+];
+
 const SURFACES: Array<[string, string]> = [
   [
     'agentic wallet',
@@ -699,34 +765,92 @@ function HowView({ data }: { data: Payload }) {
 
       <Act theme="dark">
         <Heading
+          kicker="the boundary"
+          title={
+            <>
+              Three ways in. <span className="serif-accent">One</span> can spend.
+            </>
+          }
+          lede="A public button that really placed orders would need a hot wallet with a stranger’s finger on it, which is the opposite of the argument this project is making. So the money has exactly one door, and there is a human hand on it."
+        />
+        <div className="grid gap-px overflow-hidden rounded-panel border hair md:grid-cols-3">
+          {DOORS.map((d, i) => (
+            <Reveal key={d.who} delay={i * 80}>
+              <div className="flex h-full flex-col bg-panel p-5">
+                <p className="label mb-1">{d.who}</p>
+                <p className="mb-4 font-mono text-2xs text-ghost">{d.what}</p>
+                <p className="flex-1 text-sm leading-relaxed text-muted">{d.can}</p>
+                <p
+                  className={`mt-5 inline-flex items-center gap-2 font-mono text-2xs uppercase tracking-[0.14em] ${
+                    d.spends ? 'text-accent' : 'text-teal'
+                  }`}
+                >
+                  <span
+                    aria-hidden
+                    className={`h-1.5 w-1.5 rounded-full ${d.spends ? 'bg-accent' : 'bg-teal'}`}
+                  />
+                  {d.spends ? 'spends, once a human types the word' : 'cannot spend'}
+                </p>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </Act>
+
+      <Act theme="dark">
+        <Heading
           kicker="run it yourself"
-          title="Four commands, no wallet needed."
-          lede="The demo path is fully offline. Clone it and the numbers on this page are reproducible on your machine."
+          title="Two rails. One of them spends."
+          lede="The demo rail is fully offline: clone it and every number on this page is reproducible on your machine, with no wallet and nothing at risk. The live rail is the same code pointed at a real Agentic Wallet."
         />
         <Reveal>
-          <div className="panel scrollbar-thin overflow-x-auto p-5">
+          <div className="mb-6 panel scrollbar-thin overflow-x-auto p-5">
             <pre className="font-mono text-[13px] leading-relaxed text-muted">
               <span className="text-teal">$</span> git clone
               https://github.com/martinvibes/skin-in-the-game{'\n'}
-              <span className="text-teal">$</span> npm install{'\n'}
-              {'\n'}
-              <span className="text-teal">$</span> npm run skin -- record --demo{'  '}
-              <span className="text-ghost"># the track record</span>
-              {'\n'}
-              <span className="text-teal">$</span> npm run skin -- scan --demo{'    '}
-              <span className="text-ghost"># opinions, no money</span>
-              {'\n'}
-              <span className="text-teal">$</span> npm run skin -- stake --demo{'   '}
-              <span className="text-ghost"># receipts + typed confirmation</span>
-              {'\n'}
-              <span className="text-teal">$</span> npm run skin -- claim --demo{'   '}
-              <span className="text-ghost"># sweep unclaimed winnings</span>
+              <span className="text-teal">$</span> npm install
             </pre>
           </div>
-          <p className="mt-3 font-mono text-2xs text-ghost">
-            data on this page generated {new Date(data.generatedAt).toLocaleString('en-GB')}
-          </p>
         </Reveal>
+        <div className="grid gap-px overflow-hidden rounded-panel border hair md:grid-cols-2">
+          {RAILS.map((r, i) => (
+            <Reveal key={r.rail} delay={i * 90}>
+              <div className="flex h-full flex-col bg-panel p-5">
+                <p
+                  className={`mb-2 inline-flex items-center gap-2 font-mono text-2xs uppercase tracking-[0.14em] ${
+                    r.spends ? 'text-accent' : 'text-teal'
+                  }`}
+                >
+                  <span
+                    aria-hidden
+                    className={`h-1.5 w-1.5 rounded-full ${r.spends ? 'bg-accent' : 'bg-teal'}`}
+                  />
+                  {r.rail}
+                </p>
+                <p className="mb-5 text-sm leading-relaxed text-muted">{r.note}</p>
+                <dl className="flex flex-col gap-4">
+                  {r.rows.map(([cmd, what]) => {
+                    const money = r.spends && cmd.startsWith('skin stake');
+                    return (
+                      <div key={cmd} className="border-t pt-3 hair">
+                        <dt
+                          className={`font-mono text-[13px] ${money ? 'text-accent' : 'text-ink'}`}
+                        >
+                          <span className="text-ghost">$ </span>
+                          {cmd}
+                        </dt>
+                        <dd className="mt-1 text-sm leading-relaxed text-muted">{what}</dd>
+                      </div>
+                    );
+                  })}
+                </dl>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+        <p className="mt-3 font-mono text-2xs text-ghost">
+          data on this page generated {new Date(data.generatedAt).toLocaleString('en-GB')}
+        </p>
       </Act>
     </>
   );

@@ -99,7 +99,9 @@ export type Verdict =
   | 'no-edge'
   | 'conviction-bounds'
   | 'below-minimum'
-  | 'budget-exhausted';
+  | 'budget-exhausted'
+  | 'closing-soon'
+  | 'stale-price';
 
 export interface Sizing {
   p: number;
@@ -164,6 +166,16 @@ export const VERDICT_COPY: Record<Verdict, { label: string; blurb: string }> = {
   'budget-exhausted': {
     label: 'no budget',
     blurb: 'The run cap or the wallet\'s daily limit is already spent.',
+  },
+  'closing-soon': {
+    label: 'too late',
+    blurb:
+      'It resolves before the call could be priced, quoted, shown to a human and confirmed. Declined rather than raced.',
+  },
+  'stale-price': {
+    label: 'stale price',
+    blurb:
+      'The listed price was a last-trade print, and the real quote is nowhere near it. A BNB coin flip listed at 3% quoted at 53% seconds later. The edge was in the data, not the market.',
   },
 };
 

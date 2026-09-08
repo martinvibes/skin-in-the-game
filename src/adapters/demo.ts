@@ -239,7 +239,13 @@ export class DemoClient implements PredictionClient {
   }
 
   async quote(input: QuoteInput): Promise<Quote> {
-    const price = 0.49;
+    // Quote the fixture's own price for this token, not a constant. The scan
+    // now re-prices every candidate against its quote before calling it a bet,
+    // so a demo that quoted one flat number for every market would overwrite
+    // the carefully chosen fixture prices and collapse all five verdicts into
+    // whatever that number happened to imply.
+    const price =
+      MARKETS.flatMap((m) => m.outcomes).find((o) => o.tokenId === input.tokenId)?.price ?? 0.49;
     return {
       quoteId: `demo-quote-${input.tokenId}`,
       amountOut: round(input.amount / price),

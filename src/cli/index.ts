@@ -38,7 +38,7 @@ import {
 import { formOpinion } from '../engine/analyst.js';
 import { sizeStake } from '../engine/sizing.js';
 import { buildRecord, joinConvictions } from '../engine/record.js';
-import { closingSoon, scanMarkets } from '../engine/scan.js';
+import { closingSoon, probePrice, scanMarkets } from '../engine/scan.js';
 import { load as loadJournal, loadEntries, record as journalRecord } from '../engine/journal.js';
 import type { Budget, StakeVerdict } from '../domain/types.js';
 import {
@@ -187,6 +187,19 @@ async function cmdRecord(client: PredictionClient, flags: Flags) {
   }
 }
 
+/**
+ * The middle column of a scan row.
+ *
+ * A row that reads "80% vs 70%" never says the one thing the reader needs
+ * first: which side of the market the agent is actually buying. Naming the
+ * side, the price it pays and the value it thinks it is getting makes the
+ * row a sentence — buy NO at 53 cents, worth 46 — instead of two bare numbers
+ * whose order you have to remember.
+ */
+function shape(side: string, price: number, conviction: number): string {
+  return `${pc.bold(side)} @ ${pct(price, 0)}` + pc.dim(` · fair ${pct(conviction, 0)}`);
+}
+
 async function cmdScan(
   client: PredictionClient,
   source: MarketDataSource,
@@ -202,6 +215,9 @@ async function cmdScan(
       'scan',
       `${markets.length} market(s) · bankroll ${usd(bankroll)} · run cap ${usd(budget.runCap)} · ¼ Kelly`,
     ),
+  );
+  console.log(
+    pc.dim('  side it would buy @ price it would pay · fair = what the model thinks it is worth'),
   );
 
   for (const m of markets) {
@@ -242,19 +258,50 @@ async function cmdScan(
         '  ' +
           padEnd(pc.red('pass'), 10) +
           padEnd(clip(m.title, 40), 42) +
-          pc.dim(`${pct(o.conviction, 0)} vs ${pct(o.marketPrice, 0)} · ${sized.reason}`),
+          padEnd(shape(o.side, o.marketPrice, o.conviction), 30) +
+          pc.dim(sized.reason),
       );
       continue;
     }
 
-    verdicts.push({ kind: 'staked', call, sizing: sized.sizing });
-    budget.spent += sized.sizing.stakeUsdt;
+    // Cheap gates passed on the listed price. Find out what the price really
+    // is before calling this a bet, because the listed one is a last-trade
+    // print and can be wrong by more than the entire edge.
+    const probe = await probePrice(
+      client,
+      { tokenId: o.tokenId, marketTopicId: m.marketTopicId },
+      sized.sizing.stakeUsdt,
+      o.marketPrice,
+    );
+    const priced = probe.quoted ? sizeStake(o.conviction, probe.price, bankroll, budget) : sized;
+    call.marketPrice = probe.price;
+
+    if (!priced.ok) {
+      const detail =
+        `Listed at ${pct(o.marketPrice, 0)}, quotes at ${pct(probe.price, 0)}. ${priced.detail}`;
+      verdicts.push({ kind: 'declined', call, reason: 'stale-price', detail });
+      console.log(
+        '  ' +
+          padEnd(pc.red('pass'), 10) +
+          padEnd(clip(m.title, 40), 42) +
+          padEnd(
+            `${pc.bold(o.side)} @ ${pc.dim(pct(o.marketPrice, 0))} → ${pc.yellow(pct(probe.price, 0))}` +
+              pc.dim(` · fair ${pct(o.conviction, 0)}`),
+            30,
+          ) +
+          pc.dim('stale-price'),
+      );
+      continue;
+    }
+
+    verdicts.push({ kind: 'staked', call, sizing: priced.sizing });
+    budget.spent += priced.sizing.stakeUsdt;
     console.log(
       '  ' +
         padEnd(pc.yellow('BET'), 10) +
         padEnd(clip(m.title, 40), 42) +
-        pc.dim(`${pct(o.conviction, 0)} vs ${pct(o.marketPrice, 0)} · `) +
-        pc.yellow(usd(sized.sizing.stakeUsdt)),
+        padEnd(shape(o.side, probe.price, o.conviction), 30) +
+        pc.yellow(usd(priced.sizing.stakeUsdt)),
     );
   }
   console.log(rule());
