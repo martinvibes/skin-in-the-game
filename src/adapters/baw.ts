@@ -117,8 +117,8 @@ function toSide(label: string | null): Side {
  */
 export interface PredictionClient {
   readonly mode: 'live' | 'demo';
-  status(): Promise<{ signedIn: boolean; address: string | null }>;
-  walletSettings(): Promise<{ dailyRemaining: number | null; dailyLimit: number | null }>;
+  status(): Promise<WalletStatus>;
+  walletSettings(): Promise<WalletSettings>;
   walletBalance(): Promise<{ usdt: number | null }>;
   markets(opts?: { query?: string; limit?: number }): Promise<Market[]>;
   openPositions(): Promise<OpenPosition[]>;
@@ -127,6 +127,34 @@ export interface PredictionClient {
   quote(input: QuoteInput): Promise<Quote>;
   placeOrder(quoteId: string, slippageBps: number): Promise<{ orderId: string | null }>;
   redeem(tokenIds: string[]): Promise<{ txHash: string | null }>;
+}
+
+/**
+ * Connection state, as `baw wallet status` reports it.
+ *
+ * `CREATING` is its own state and not a synonym for signed out: the user has
+ * approved on their phone but the wallet is still being provisioned, and a
+ * trade sent during that window fails in a way that looks like a bug in this
+ * tool. It is worth a distinct message.
+ */
+export interface WalletStatus {
+  signedIn: boolean;
+  address: string | null;
+  /** Raw state string: `CONNECTED`, `CREATING`, `UNCONNECTED`, or `demo`. */
+  state: string;
+}
+
+export interface WalletSettings {
+  /** Remaining *prediction* quota for today, USDT. */
+  dailyRemaining: number | null;
+  /** The prediction daily limit, USDT. */
+  dailyLimit: number | null;
+  /**
+   * Whether prediction trading is switched on for this wallet. `false` means
+   * every `prediction trade` call will be rejected by policy no matter how
+   * well sized, and the only fix is a toggle in the Binance app.
+   */
+  predictionEnabled: boolean | null;
 }
 
 export interface QuoteInput {
@@ -159,35 +187,85 @@ export class LiveClient implements PredictionClient {
     this.#opts = opts;
   }
 
-  async status() {
+  async status(): Promise<WalletStatus> {
     const d = await runBaw(['wallet', 'status'], this.#opts);
-    const address = str(d, 'address', 'walletAddress', 'account');
-    // Treat presence of an address as the authoritative signal; different CLI
-    // versions spell the boolean differently (`connected`, `loggedIn`, ...).
+
+    // CLI 1.9.0 answers `{ status: 'CONNECTED' }` and carries no address and no
+    // boolean at all. Reading only the boolean, as this did, reported a
+    // connected wallet as signed out and refused every live run.
+    const state = str(d, 'status', 'walletStatus', 'connectionStatus');
     const flag = isRec(d)
       ? (d['connected'] ?? d['signedIn'] ?? d['loggedIn'] ?? d['isConnected'])
       : undefined;
-    const signedIn = typeof flag === 'boolean' ? flag : address !== null;
-    return { signedIn, address };
+    const inline = str(d, 'address', 'walletAddress', 'account');
+
+    const signedIn =
+      state !== null
+        ? state.toUpperCase() === 'CONNECTED'
+        : typeof flag === 'boolean'
+          ? flag
+          : inline !== null;
+
+    // The address lives behind its own command, one row per chain. Only worth
+    // a second call once we know we are connected, and never worth failing the
+    // status check over: it is display, not a gate.
+    const address = inline ?? (signedIn ? await this.#bscAddress() : null);
+    return { signedIn, address, state: state ?? (signedIn ? 'CONNECTED' : 'UNCONNECTED') };
   }
 
-  async walletSettings() {
+  /** The BNB Smart Chain address, which is the one prediction markets settle on. */
+  async #bscAddress(): Promise<string | null> {
+    try {
+      const d = await runBaw(['wallet', 'address'], this.#opts);
+      const rows = pickArray(d, 'addresses');
+      const bsc = rows.find((r) => str(r, 'binanceChainId', 'chainId') === '56');
+      return str(bsc ?? rows[0], 'address');
+    } catch {
+      return null;
+    }
+  }
+
+  async walletSettings(): Promise<WalletSettings> {
     const d = await runBaw(['wallet', 'settings'], this.#opts);
+
+    // Prediction trades draw on their own quota, separate from the wallet's
+    // general daily limit: `predictionQuotaLeft`, not `quotaLeft`. Sizing
+    // against the general figure would let the agent plan a stake the venue
+    // then refuses, and sizing against nothing (which is what the old key list
+    // produced: null) removes the wallet limit from the ceiling set entirely.
+    const dailyRemaining = num(
+      d,
+      'predictionQuotaLeft',
+      'predictionQuotaRemaining',
+      'quotaLeft',
+      'remainingDailyLimit',
+      'dailyRemaining',
+      'remainingQuota',
+      'remaining',
+    );
+    const dailyLimit = num(d, 'predictionDailyLimit', 'dailyLimit', 'limit', 'dailyLimitUsd');
+    const flag = isRec(d) ? d['predictionEnabled'] : undefined;
+
     return {
-      dailyRemaining: num(d, 'remainingDailyLimit', 'dailyRemaining', 'remainingQuota', 'remaining'),
-      dailyLimit: num(d, 'dailyLimit', 'limit', 'dailyLimitUsd'),
+      dailyRemaining,
+      dailyLimit,
+      predictionEnabled: typeof flag === 'boolean' ? flag : null,
     };
   }
 
   async walletBalance() {
     const d = await runBaw(['wallet', 'balance'], this.#opts);
     const rows = pickArray(d, 'balances', 'tokens', 'assets');
-    for (const r of rows) {
-      const sym = str(r, 'symbol', 'asset', 'token', 'name');
-      if (sym && sym.toUpperCase() === 'USDT') {
-        return { usdt: num(r, 'balance', 'amount', 'free', 'available', 'value') };
-      }
-    }
+    const usdt = rows.filter(
+      (r) => (str(r, 'symbol', 'asset', 'token', 'name') ?? '').toUpperCase() === 'USDT',
+    );
+
+    // The CLI returns one row per chain. Prediction markets settle in USDT on
+    // BNB Smart Chain, so USDT sitting on Solana or Base is not spendable here
+    // and must not inflate the bankroll Kelly is sized against.
+    const row = usdt.find((r) => str(r, 'binanceChainId', 'chainId') === '56') ?? usdt[0];
+    if (row) return { usdt: num(row, 'balance', 'amount', 'free', 'available', 'value') };
+
     return { usdt: num(d, 'usdt', 'totalUsd', 'totalValueUsd') };
   }
 

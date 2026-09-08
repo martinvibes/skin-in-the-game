@@ -17,7 +17,7 @@ It is settled positions on Binance prediction markets, scored with a rule it can
 [![Agentic Wallet](https://img.shields.io/badge/Agentic%20Wallet-baw-F0B90B?style=flat-square)](https://github.com/binance/binance-skills-hub)
 [![MCP Server](https://img.shields.io/badge/MCP-agent.binance.com-5FD693?style=flat-square)](https://agent.binance.com/mcp/agentic)
 [![ci](https://img.shields.io/github/actions/workflow/status/martinvibes/skin-in-the-game/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/martinvibes/skin-in-the-game/actions)
-[![tests](https://img.shields.io/badge/tests-55%20passing-5FD693?style=flat-square)](test/)
+[![tests](https://img.shields.io/badge/tests-58%20passing-5FD693?style=flat-square)](test/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square)](tsconfig.json)
 [![license](https://img.shields.io/badge/license-MIT-EFE8DA?style=flat-square)](LICENSE)
 
@@ -518,7 +518,7 @@ skill/
 web/                     Vite + React dashboard ("Ledger Noir")
 fixtures/                a klines payload for exercising the --mcp-data path
 docs/                    dashboard screenshots used by this README
-test/                    55 tests: the pure engine, and the MCP surface
+test/                    58 tests: the engine, the adapter, the MCP surface
 ```
 
 ~3,300 lines of TypeScript, `strict` with `noUncheckedIndexedAccess`.
@@ -570,7 +570,7 @@ This spends real money from a real wallet, so:
 ## Testing
 
 ```bash
-npm test          # 55 tests
+npm test          # 58 tests
 npm run typecheck # tsc --noEmit, strict
 ```
 
@@ -584,6 +584,13 @@ equity accumulation.
 over a linked transport pair, and pins the spend boundary: no tool name may
 contain a state-changing verb, and the server's own source may not reference
 `client.placeOrder` or `client.redeem`.
+
+[`test/adapter.test.ts`](test/adapter.test.ts) runs the client against a fake
+`baw` binary that replies with the response bodies documented in the Agentic
+Wallet skill. Every case there is a shape this adapter got wrong: a `CONNECTED`
+wallet read as signed out, the general daily limit read in place of the
+prediction quota, and USDT on the wrong chain counted as bankroll. All three
+failed silently, which is the only kind of bug that matters on this path.
 
 [CI](.github/workflows/ci.yml) runs all of that on every push, plus a smoke test
 that executes every command in demo mode on a clean machine, with no wallet, no

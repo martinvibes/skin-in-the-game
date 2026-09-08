@@ -372,7 +372,7 @@ export function createSkinServer(
     async (args): Promise<ToolReply> => {
       const settings = await client
         .walletSettings()
-        .catch(() => ({ dailyRemaining: null, dailyLimit: null }));
+        .catch(() => ({ dailyRemaining: null, dailyLimit: null, predictionEnabled: null }));
       const budget = budgetFrom(defaults, args, settings.dailyRemaining);
       const bankroll = await bankrollOf(client, budget.runCap);
       const trace = await scanMarkets(
@@ -493,7 +493,7 @@ export function createSkinServer(
       const o = result.opinion;
       const settings = await client
         .walletSettings()
-        .catch(() => ({ dailyRemaining: null, dailyLimit: null }));
+        .catch(() => ({ dailyRemaining: null, dailyLimit: null, predictionEnabled: null }));
       const budget = budgetFrom(defaults, args, settings.dailyRemaining);
       const bankroll = await bankrollOf(client, budget.runCap);
       const sized = sizeStake(o.conviction, o.marketPrice, bankroll, budget);

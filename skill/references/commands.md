@@ -158,16 +158,16 @@ For debugging, or to verify what the CLI did:
 
 ```bash
 baw prediction market list --json
-baw prediction market detail --market-id <id> --json
-baw prediction market last-trade-price --token-id <id> --json
+baw prediction market detail --marketTopicId <id> --json
+baw prediction market last-trade-price --marketId <id> --json
 baw prediction position list --tab ONGOING --json
 baw prediction position list --tab PENDING_CLAIM --json
 baw prediction position settled-history --filter all --json
 baw prediction position pnl --json
 baw prediction order history --json
-baw prediction trade quote --token-id <id> --side BUY --amount 1 --json
-baw prediction trade place-order --token-id <id> --side BUY --amount 1 --json
-baw prediction trade redeem --token-id <id> --json
+baw prediction trade quote --binanceChainId 56 --tokenId <id> --marketTopicId <id> --side BUY --amount 1 --orderType MARKET --json
+baw prediction trade place-order --quoteId <id> --slippageBps 1000 --json
+baw prediction trade redeem --tokenIds <id> --json
 ```
 
 `skin` composes these; it does not replace them. Every number it prints can be

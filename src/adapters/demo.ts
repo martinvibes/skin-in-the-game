@@ -213,10 +213,14 @@ export class DemoClient implements PredictionClient {
   #redeemed = new Set<string>();
 
   async status() {
-    return { signedIn: true, address: '0xDEMO000000000000000000000000000000000000' };
+    return {
+      signedIn: true,
+      address: '0xDEMO000000000000000000000000000000000000',
+      state: 'demo',
+    };
   }
   async walletSettings() {
-    return { dailyRemaining: 12.4, dailyLimit: 20 };
+    return { dailyRemaining: 12.4, dailyLimit: 20, predictionEnabled: true };
   }
   async walletBalance() {
     return { usdt: 9.83 };

@@ -86,8 +86,9 @@ export async function cmdDoctor(
     await probe('wallet status', ['wallet', 'status'], async () => {
       const s = await client.status();
       return [
+        ['state', s.state],
         ['signedIn', s.signedIn],
-        ['address', s.address],
+        ['address (BSC)', s.address],
       ];
     }),
   );
@@ -96,8 +97,9 @@ export async function cmdDoctor(
     await probe('wallet settings', ['wallet', 'settings'], async () => {
       const s = await client.walletSettings();
       return [
-        ['dailyLimit', s.dailyLimit],
-        ['dailyRemaining', s.dailyRemaining],
+        ['predictionEnabled', s.predictionEnabled],
+        ['predictionDailyLimit', s.dailyLimit],
+        ['predictionQuotaLeft', s.dailyRemaining],
       ];
     }),
   );
@@ -232,6 +234,7 @@ export async function cmdDoctor(
   console.log(pc.dim('  every read-only call the agent makes, and what parsed out of it'));
   console.log(pc.dim('  ' + '─'.repeat(74)));
 
+  const blockers: string[] = [];
   let failures = 0;
   let nulls = 0;
 
@@ -259,6 +262,23 @@ export async function cmdDoctor(
     console.log(pc.dim(`         returned  `) + pc.cyan(r.rawKeys));
     for (const [k, v] of r.parsed) {
       console.log(`         ${k.padEnd(22)}${show(v)}`);
+
+      // Two values are perfectly parseable and still mean "you cannot trade".
+      // They are worth calling out here rather than letting the user discover
+      // them as a rejected order.
+      if (k === 'state' && v !== 'CONNECTED') {
+        blockers.push(
+          v === 'CREATING'
+            ? 'Wallet is still being created. Wait a moment and re-run doctor.'
+            : 'Wallet is not signed in. Run `baw auth signin`, then `baw auth verify --qrCodeId <id>`.',
+        );
+      }
+      if (k === 'predictionEnabled' && v === false) {
+        blockers.push(
+          'Prediction trading is switched off for this wallet. Enable it in the ' +
+            'Binance app under Agentic Wallet settings; no stake can be placed until you do.',
+        );
+      }
     }
     if (missing > 0) {
       console.log(
@@ -272,7 +292,11 @@ export async function cmdDoctor(
 
   console.log('');
   console.log(pc.dim('  ' + '─'.repeat(74)));
-  if (failures === 0 && nulls === 0) {
+
+  for (const b of blockers) console.log(pc.yellow(`  ! ${b}`));
+  if (blockers.length > 0) console.log('');
+
+  if (failures === 0 && nulls === 0 && blockers.length === 0) {
     console.log(pc.green('  All probes parsed cleanly. The live path is ready to stake.'));
   } else {
     console.log(
@@ -287,5 +311,5 @@ export async function cmdDoctor(
     console.log(pc.dim('    baw wallet settings --json | jq\n'));
   }
 
-  return failures > 0 ? 1 : 0;
+  return failures > 0 || blockers.length > 0 ? 1 : 0;
 }

@@ -426,7 +426,7 @@ async function cmdExport(
     // operator's positions into a committed file.
     client.mode === 'demo' ? Promise.resolve(DEMO_JOURNAL) : loadEntries(),
     client.walletBalance().catch(() => ({ usdt: null })),
-    client.walletSettings().catch(() => ({ dailyRemaining: null, dailyLimit: null })),
+    client.walletSettings().catch(() => ({ dailyRemaining: null, dailyLimit: null, predictionEnabled: null })),
   ]);
 
   const withConviction = joinConvictions(settled, journal);
@@ -578,13 +578,23 @@ async function main() {
     exit(await cmdDoctor(client as LiveClient, { deep: flags.deep, raw: flags.raw }));
   }
 
-  // A signed-out wallet is a normal first-run state, not a crash.
+  // A signed-out wallet is a normal first-run state, not a crash. `CREATING`
+  // is its own state: approved on the phone, wallet not yet provisioned, and
+  // a trade sent in that window fails in a way that reads like our bug.
   if (client.mode === 'live') {
     const status = await client.status();
     if (!status.signedIn) {
       console.error(
-        pc.red('\n  Wallet is not signed in.\n') +
-          pc.dim('  Ask your agent: "Sign in to Binance Agentic Wallet", or run `baw auth signin`.\n'),
+        status.state.toUpperCase() === 'CREATING'
+          ? pc.yellow('\n  Wallet is still being created.\n') +
+              pc.dim('  Give it a moment, then run `npm run skin -- doctor --live` again.\n')
+          : pc.red('\n  Wallet is not signed in.\n') +
+              pc.dim(
+                '  Sign in is two steps, and the second one is the one people skip:\n' +
+                  '    baw auth signin --json              # shows a pairing code and a URL\n' +
+                  '    baw auth verify --qrCodeId <id>     # blocks until you approve on your phone\n' +
+                  '  Leave `verify` running until it returns, or the session never lands locally.\n',
+              ),
       );
       exit(1);
     }
@@ -594,9 +604,25 @@ async function main() {
   // remainder is read (never written) from Binance.
   const [balance, settings] = await Promise.all([
     client.walletBalance().catch(() => ({ usdt: null })),
-    client.walletSettings().catch(() => ({ dailyRemaining: null, dailyLimit: null })),
+    client
+      .walletSettings()
+      .catch(() => ({ dailyRemaining: null, dailyLimit: null, predictionEnabled: null })),
   ]);
   const bankroll = balance.usdt ?? flags.runCap;
+
+  // Prediction trading is a per-wallet toggle set in the Binance app. If it is
+  // off, every order is refused by policy however well sized, so say that here
+  // rather than after a scan the user cannot act on.
+  if (settings.predictionEnabled === false && (command === 'stake' || command === 'claim')) {
+    console.error(
+      pc.red('\n  Prediction trading is switched off for this wallet.\n') +
+        pc.dim(
+          '  Binance app > Agentic Wallet > settings, and enable prediction trading.\n' +
+            '  `skin scan --live` still works: it forms opinions and commits nothing.\n',
+        ),
+    );
+    exit(1);
+  }
 
   const budget: Budget = {
     perCallCap: flags.perCall,
