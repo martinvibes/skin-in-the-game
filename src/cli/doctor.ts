@@ -111,6 +111,7 @@ export async function cmdDoctor(
     }),
   );
 
+  let firstTopicId: string | null = null;
   let firstMarketId: string | null = null;
   let firstTokenId: string | null = null;
 
@@ -126,7 +127,10 @@ export async function cmdDoctor(
       async () => {
         const ms = await client.markets({ limit: 5 });
         const m = ms[0];
-        firstMarketId = m?.marketTopicId ?? null;
+        // `last-trade-price` wants the market id; `trade quote` wants the
+        // topic id. They are different numbers on the same market.
+        firstTopicId = m?.marketTopicId ?? null;
+        firstMarketId = m?.marketId ?? null;
         firstTokenId = m?.outcomes?.[0]?.tokenId ?? null;
         return [
           ['tradable markets', ms.length],
@@ -202,7 +206,7 @@ export async function cmdDoctor(
 
   // A quote is a price enquiry. It commits nothing, but it is the last call
   // before an order, so it is the one most worth checking before going live.
-  if (opts.deep && firstMarketId && firstTokenId) {
+  if (opts.deep && firstTopicId && firstTokenId) {
     results.push(
       await probe(
         'trade quote (no order placed)',
@@ -210,7 +214,7 @@ export async function cmdDoctor(
         async () => {
           const q = await client.quote({
             tokenId: firstTokenId as string,
-            marketTopicId: firstMarketId as string,
+            marketTopicId: firstTopicId as string,
             amount: 1,
             slippageBps: 1000,
           });

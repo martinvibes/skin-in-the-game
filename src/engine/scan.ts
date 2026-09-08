@@ -63,6 +63,26 @@ export interface ScanTrace {
   steps: ScanStep[];
 }
 
+/**
+ * How long is left on a market, when that is too little to act on.
+ *
+ * Returns the milliseconds remaining if the market resolves sooner than
+ * `minMinutes`, and null when there is enough time. A five-minute market with
+ * ninety seconds left cannot be priced, quoted, shown to a human and confirmed
+ * before it settles — and a quote that expires mid-confirmation is a failed
+ * order, not a bet. Declining early is honest; racing the clock is not.
+ */
+export function closingSoon(
+  endDate: string | undefined,
+  minMinutes: number,
+  now = Date.now(),
+): number | null {
+  if (!endDate) return null;
+  const left = Date.parse(endDate) - now;
+  if (!Number.isFinite(left)) return null;
+  return left < minMinutes * 60_000 ? left : null;
+}
+
 /** Round every number in a payload, leaving strings, nulls and shape intact. */
 export function roundDeep<T>(value: T, places: number): T {
   const f = 10 ** places;
@@ -89,7 +109,7 @@ export function roundDeep<T>(value: T, places: number): T {
 export async function scanMarkets(
   client: PredictionClient,
   source: MarketDataSource,
-  opts: { limit: number },
+  opts: { limit: number; minHorizonMinutes?: number },
   budget: Budget,
   bankroll: number,
 ): Promise<ScanTrace> {
@@ -99,6 +119,16 @@ export async function scanMarkets(
 
   for (const m of markets) {
     const base = { question: m.title, marketTopicId: m.marketTopicId, endDate: m.endDate };
+
+    const soon = closingSoon(m.endDate, opts.minHorizonMinutes ?? 0);
+    if (soon !== null) {
+      steps.push({
+        ...base,
+        verdict: 'closing-soon',
+        detail: `Resolves in ${Math.max(0, Math.round(soon / 1000))}s, too soon to quote and confirm.`,
+      });
+      continue;
+    }
 
     const opinion = await formOpinion(m, source);
     if (!opinion.ok) {

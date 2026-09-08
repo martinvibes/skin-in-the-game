@@ -38,7 +38,7 @@ import {
 import { formOpinion } from '../engine/analyst.js';
 import { sizeStake } from '../engine/sizing.js';
 import { buildRecord, joinConvictions } from '../engine/record.js';
-import { scanMarkets } from '../engine/scan.js';
+import { closingSoon, scanMarkets } from '../engine/scan.js';
 import { load as loadJournal, loadEntries, record as journalRecord } from '../engine/journal.js';
 import type { Budget, StakeVerdict } from '../domain/types.js';
 import {
@@ -74,6 +74,7 @@ interface Flags {
   perCall: number;
   kelly: number;
   minOrder: number;
+  minHorizon: number;
   limit: number;
   mcpData: string | null;
   out: string | null;
@@ -100,6 +101,7 @@ function parseFlags(args: string[]): Flags {
     perCall: numOr('per-call', 1.5),
     kelly: numOr('kelly', 0.25),
     minOrder: numOr('min-order', 1),
+    minHorizon: numOr('min-horizon', 2),
     limit: numOr('limit', 12),
     deep: has('deep'),
     raw: has('raw'),
@@ -203,6 +205,17 @@ async function cmdScan(
   );
 
   for (const m of markets) {
+    const soon = closingSoon(m.endDate, flags.minHorizon);
+    if (soon !== null) {
+      console.log(
+        '  ' +
+          padEnd(pc.dim('late'), 10) +
+          padEnd(clip(m.title, 40), 42) +
+          pc.dim(`resolves in ${Math.max(0, Math.round(soon / 1000))}s · too soon to act on`),
+      );
+      continue;
+    }
+
     const opinion = await formOpinion(m, source);
     if (!opinion.ok) {
       console.log('  ' + padEnd(pc.dim('skip'), 10) + padEnd(clip(m.title, 40), 42) + pc.dim(opinion.reason));
@@ -304,14 +317,47 @@ async function cmdStake(
         marketTopicId: v.call.marketTopicId,
         amount: v.sizing.stakeUsdt,
       });
+
+      // Re-gate at execution.
+      //
+      // The scan measured its edge against the market's last *traded* price,
+      // which can be minutes stale. `averagePrice` is what this order will
+      // actually fill at, and on a short-duration market the two routinely
+      // differ by ten points — enough to erase the entire reason for the bet
+      // between forming the view and placing it. So the call is re-tested
+      // against the price we are really paying, and abandoned if the edge that
+      // justified it has gone. The alternative is buying something the agent
+      // no longer believes is cheap, which is how a disciplined system quietly
+      // becomes a random one.
+      const paid = quote.averagePrice;
+      const gate = {
+        ...budget,
+        spent: 0,
+        runCap: v.sizing.stakeUsdt,
+        perCallCap: v.sizing.stakeUsdt,
+      };
+      const regated = sizeStake(v.call.conviction, paid, bankroll, gate);
+      if (!regated.ok) {
+        console.log(
+          '  ' +
+            pc.yellow('~') +
+            ` ${clip(v.call.question, 40)} · re-priced ${pct(v.call.marketPrice, 0)} → ` +
+            pc.yellow(pct(paid, 0)) +
+            pc.dim(` · ${regated.reason}`),
+        );
+        console.log(pc.dim('    Not placed. The edge that justified this call is gone.'));
+        continue;
+      }
+
       const order = await client.placeOrder(quote.quoteId, quote.slippageBps);
 
       // Journal BEFORE announcing success: the conviction must be on record
-      // even if the confirmation output is lost.
+      // even if the confirmation output is lost. The price recorded is the one
+      // actually paid, not the one that prompted the call.
       await journalRecord({
         tokenId: v.call.tokenId,
         conviction: v.call.conviction,
-        marketPrice: v.call.marketPrice,
+        marketPrice: paid,
         stake: v.sizing.stakeUsdt,
         question: v.call.question,
         thesis: v.call.thesis,
@@ -433,7 +479,7 @@ async function cmdExport(
   const scan = await scanMarkets(
     client,
     source,
-    { limit: flags.limit },
+    { limit: flags.limit, minHorizonMinutes: flags.minHorizon },
     { ...budget, spent: 0 },
     bankroll,
   );
@@ -519,6 +565,7 @@ function help(): string {
     '    --per-call <usdt>  ceiling for any single stake       (default 1.5)',
     '    --kelly <f>        fraction of full Kelly to apply    (default 0.25)',
     '    --min-order <usdt> venue minimum order size           (default 1)',
+    '    --min-horizon <min> skip markets resolving sooner     (default 2)',
     '',
     pc.dim('  OTHER'),
     '    --deep             doctor: also price a quote (still places no order)',
