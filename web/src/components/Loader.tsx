@@ -1,9 +1,8 @@
 /**
  * The opening.
  *
- * The mark's wedge is a position filling: it sweeps from nothing to a third of
- * the ring while a counter runs up to the money actually at risk, then the
- * whole thing lifts away. It is the product's one sentence — a claim is not
+ * The mark's divider slides out to the price while a counter runs up to the
+ * money actually at risk, then the whole thing lifts away. It is the product's one sentence — a claim is not
  * worth anything until something has been staked against it — played once,
  * before you read a word of the page.
  *
@@ -15,12 +14,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Mark } from './Logo';
 
+const REST_SPLIT = 0.62;
 const SWEEP_MS = 1150;
 const HOLD_MS = 240;
 const FADE_MS = 620;
 
 export function Loader({ target, onDone }: { target: number; onDone: () => void }) {
-  const [turn, setTurn] = useState(0);
+  const [split, setSplit] = useState(0);
   const [leaving, setLeaving] = useState(false);
   const started = useRef(0);
 
@@ -37,7 +37,7 @@ export function Loader({ target, onDone }: { target: number; onDone: () => void 
       const p = Math.min(1, (now - started.current) / SWEEP_MS);
       // Same easing as the reveals, so the splash and the page share a hand.
       const eased = 1 - Math.pow(1 - p, 3);
-      setTurn(eased * 0.3);
+      setSplit(eased * REST_SPLIT);
       if (p < 1) {
         frame = requestAnimationFrame(tick);
         return;
@@ -51,7 +51,7 @@ export function Loader({ target, onDone }: { target: number; onDone: () => void 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const shown = target * (turn / 0.3);
+  const shown = target * (split / REST_SPLIT);
 
   return (
     <div
@@ -64,11 +64,11 @@ export function Loader({ target, onDone }: { target: number; onDone: () => void 
       }}
     >
       <div className="flex flex-col items-center">
-        <Mark size={56} turn={turn} className="text-ink" />
+        <Mark size={56} split={split} />
         <p
           data-numeric
           className="mt-7 font-mono text-[22px] tracking-tight text-ink"
-          style={{ opacity: 0.25 + (turn / 0.3) * 0.75 }}
+          style={{ opacity: 0.25 + (split / REST_SPLIT) * 0.75 }}
         >
           ${shown.toFixed(2)}
         </p>

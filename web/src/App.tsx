@@ -17,6 +17,7 @@ import { useEffect, useState } from 'react';
 import { Act, Heading, Reveal } from './components/Act';
 import { Console } from './components/Console';
 import { Loader } from './components/Loader';
+import { Mark } from './components/Logo';
 import { Nav, Roll, type View } from './components/Nav';
 import { CalibrationPlot, EquityCurve } from './components/Charts';
 import { OpenLedger, SettledLedger, Slip, Stat, UnclaimedPanel } from './components/Panels';
@@ -738,9 +739,10 @@ function Footer({ data }: { data: Payload }) {
     <Act theme="dark" className="!pb-16 !pt-10 md:!pb-20 md:!pt-12">
       <div className="flex flex-wrap items-end justify-between gap-8 border-t pt-10 hair">
         <div className="max-w-md">
-          <p className="font-display text-xl font-semibold text-ink">
-            Skin
-          </p>
+          <div className="flex items-center gap-2.5">
+            <Mark size={22} />
+            <p className="font-display text-xl font-semibold tracking-[-0.045em] text-ink">Skin</p>
+          </div>
           <p className="mt-2 text-xs leading-relaxed text-faint">
             Built on Binance Agentic Wallet and the Binance MCP Server for the Agent OS Mini
             Hackathon, Track A. MIT licensed. Not financial advice; the agent bets its own money
