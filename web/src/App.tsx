@@ -13,7 +13,7 @@
  * produced it.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Act, Heading, Reveal } from './components/Act';
 import { Console } from './components/Console';
 import { Loader } from './components/Loader';
@@ -645,6 +645,32 @@ const DOORS: Array<{ who: string; what: string; can: string; spends: boolean }> 
  * is the one that spends. Listing them together, with the money command marked
  * in the same accent the boundary section uses, answers both in one glance.
  */
+/** Copies one command to the clipboard and says so for a moment. */
+function Copy({ text, label }: { text: string; label: string }) {
+  const [done, setDone] = useState(false);
+  const timer = useRef<number | null>(null);
+  useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
+  return (
+    <button
+      type="button"
+      aria-label={`Copy ${label}`}
+      className="shrink-0 rounded border px-2 py-1 font-mono text-2xs uppercase tracking-[0.12em] hair text-ghost transition-colors hover:text-ink"
+      onClick={() => {
+        navigator.clipboard?.writeText(text).then(
+          () => {
+            setDone(true);
+            if (timer.current) window.clearTimeout(timer.current);
+            timer.current = window.setTimeout(() => setDone(false), 1400);
+          },
+          () => undefined,
+        );
+      }}
+    >
+      {done ? <span className="text-teal">copied</span> : 'copy'}
+    </button>
+  );
+}
+
 const RAILS: Array<{
   rail: string;
   note: string;
@@ -653,25 +679,26 @@ const RAILS: Array<{
 }> = [
   {
     rail: 'demo',
-    note: 'Fully offline, synthetic fixtures. No wallet, no install, nothing to lose. Every number on this page came from this rail.',
+    note: 'Synthetic fixtures, fully offline. No wallet, no install, nothing at risk. Every number on this page came from this rail, and regenerates byte-for-byte on your machine.',
     spends: false,
     rows: [
-      ['skin record --demo', 'The track record: Brier score, calibration, equity curve.'],
-      ['skin scan --demo', 'Opinions and refusals, each one named. Commits nothing.'],
-      ['skin stake --demo', 'Receipts and the typed confirmation, with nothing sent.'],
-      ['skin claim --demo', 'Sweeps settled wins that were never redeemed.'],
+      ['npm run skin -- record --demo', 'The track record: Brier score, calibration, equity curve.'],
+      ['npm run skin -- scan --demo', 'Opinions and refusals, each one named. Commits nothing.'],
+      ['npm run skin -- stake --demo', 'Receipts and the typed confirmation, with nothing sent.'],
+      ['npm run skin -- claim --demo', 'Sweeps settled wins that were never redeemed.'],
     ],
   },
   {
     rail: 'live',
-    note: 'Needs npm i -g @binance/agentic-wallet, then baw auth signin to pair the Agentic Wallet with the Binance app.',
+    note: 'Live is the default; --demo is the opt-out. Needs npm i -g @binance/agentic-wallet, then baw auth signin to pair the Agentic Wallet with the Binance app.',
     spends: true,
     rows: [
-      ['skin doctor --live', 'Wallet, session, prediction quota and balance, before anything is risked.'],
-      ['skin scan --live', 'The real book, re-priced against real quotes. Still commits nothing.'],
-      ['skin stake --live', 'The only command that can spend. Prints receipts, waits for the word.'],
-      ['skin claim --live', 'Redeems settled wins back to the wallet.'],
-      ['skin mcp', 'Serves the read-only tools to an agent over stdio.'],
+      ['npm run skin -- doctor', 'Wallet, session, prediction quota and balance, before anything is risked.'],
+      ['npm run skin -- scan', 'The real book, re-priced against real quotes. Still commits nothing.'],
+      ['npm run skin -- stake --budget 1 --per-call 1', 'The only command that can spend. Prints receipts, then waits for the word.'],
+      ['npm run skin -- record', 'Settled record and calibration, plus open positions with money still on them.'],
+      ['npm run skin -- claim', 'Redeems settled wins back to the wallet.'],
+      ['npm run skin -- mcp', 'Serves the read-only tools to an agent over stdio.'],
     ],
   },
 ];
@@ -804,8 +831,14 @@ function HowView({ data }: { data: Payload }) {
           lede="The demo rail is fully offline: clone it and every number on this page is reproducible on your machine, with no wallet and nothing at risk. The live rail is the same code pointed at a real Agentic Wallet."
         />
         <Reveal>
-          <div className="mb-6 panel scrollbar-thin overflow-x-auto p-5">
-            <pre className="font-mono text-[13px] leading-relaxed text-muted">
+          <div className="mb-6 panel relative p-5">
+            <div className="absolute right-4 top-4">
+              <Copy
+                text={'git clone https://github.com/martinvibes/skin-in-the-game\nnpm install'}
+                label="the setup commands"
+              />
+            </div>
+            <pre className="scrollbar-thin overflow-x-auto font-mono text-[13px] leading-relaxed text-muted">
               <span className="text-teal">$</span> git clone
               https://github.com/martinvibes/skin-in-the-game{'\n'}
               <span className="text-teal">$</span> npm install
@@ -830,14 +863,17 @@ function HowView({ data }: { data: Payload }) {
                 <p className="mb-5 text-sm leading-relaxed text-muted">{r.note}</p>
                 <dl className="flex flex-col gap-4">
                   {r.rows.map(([cmd, what]) => {
-                    const money = r.spends && cmd.startsWith('skin stake');
+                    const money = r.spends && cmd.includes(' stake');
                     return (
                       <div key={cmd} className="border-t pt-3 hair">
-                        <dt
-                          className={`font-mono text-[13px] ${money ? 'text-accent' : 'text-ink'}`}
-                        >
-                          <span className="text-ghost">$ </span>
-                          {cmd}
+                        <dt className="flex items-start justify-between gap-3">
+                          <span
+                            className={`font-mono text-[13px] ${money ? 'text-accent' : 'text-ink'}`}
+                          >
+                            <span className="text-ghost">$ </span>
+                            {cmd}
+                          </span>
+                          <Copy text={cmd} label={cmd} />
                         </dt>
                         <dd className="mt-1 text-sm leading-relaxed text-muted">{what}</dd>
                       </div>

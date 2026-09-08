@@ -40,43 +40,21 @@ information in anything they say.
 
 Binance Agent OS shipped prediction markets to the Agentic Wallet. A prediction
 market quotes belief directly: an outcome token at $0.62 *is* a 62% probability.
-That makes it the only venue where an agent's forecast and its money can be the
+That makes it the only venue where an agent's forecast and its money are the
 same object.
 
-So this agent is not allowed to have an opinion for free.
-
-1. It reads a market and computes a probability from realized volatility: no
-   LLM guess, a closed-form model anyone can recheck.
-2. If it disagrees with the market by more than 4 points, it sizes a stake by
-   the **Kelly criterion** and buys with real USDT.
-3. Before the outcome is known, the conviction goes into an append-only journal.
-4. When the market resolves, the result is scored by **Brier score**, a
-   strictly proper rule, meaning the agent's best possible strategy is to state
-   what it actually believes.
-5. It sweeps its own winnings, because prediction markets do not pay out
-   automatically and an agent that never claims goes broke while being right.
+So this agent is not allowed to have an opinion for free. It prices a market
+from realized volatility (a closed-form model, no LLM guess), and if it
+disagrees by more than 4 points it sizes a stake by the **Kelly criterion** and
+buys with real USDT. The conviction goes into an append-only journal *before*
+the outcome is known. When the market resolves, the call is scored by **Brier
+score**, a strictly proper rule, so the agent's best possible strategy is to
+state what it actually believes. It sweeps its own winnings too, because
+prediction markets do not pay out automatically and an agent that never claims
+goes broke while being right.
 
 Every number on the dashboard traces back to a settled on-chain position.
 **The agent does not get a vote in its own performance review.**
-
----
-
-## Table of contents
-
-- [What it looks like](#what-it-looks-like)
-- [Quick start](#quick-start)
-- [Binance Agent OS surfaces used](#binance-agent-os-surfaces-used)
-  - [Using the MCP Server](#using-the-mcp-server)
-- [Skin as an MCP server](#skin-as-an-mcp-server)
-- [Why it refuses](#why-it-refuses)
-- [How the model works](#how-the-model-works)
-- [Architecture](#architecture)
-- [Repo layout](#repo-layout)
-- [Commands](#commands)
-- [Safety](#safety)
-- [Testing](#testing)
-- [For judges and reviewers](#for-judges-and-reviewers)
-- [Honest limitations](#honest-limitations)
 
 ---
 
@@ -128,74 +106,64 @@ which of the four ceilings actually bound the size.
 
 ```
 ┌┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┐
-┆ BTC above $109,800 · 1 h                                      PENDING  ┆
+┆ Bitcoin Up or Down on September 8?                            PENDING  ┆
 ┆ side NO                                                                ┆
 ┆┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┆
-┆ agent says            73.8%                                            ┆
-┆ market says           48.0%                                            ┆
-┆ edge                  25.8%                                            ┆
-┆ payout odds           1.08:1                                           ┆
-┆ full Kelly            49.6%                                            ┆
-┆ applied (¼ Kelly)     12.4%                                            ┆
-┆ bound by              kelly                                            ┆
+┆ agent says            83.4%                                            ┆
+┆ market says           74.0%                                            ┆
+┆ edge                   9.4%                                            ┆
+┆ payout odds           0.35:1                                           ┆
+┆ full Kelly            36.2%                                            ┆
+┆ applied (¼ Kelly)      9.0%                                            ┆
+┆ bound by              per-call-cap                                     ┆
 ┆┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┆
-┆ STAKE                 $1.22                                            ┆
+┆ STAKE                 $1.00                                            ┆
 ┆┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┆
-┆ BTC spot $109,420, realized vol 52% (200 × 1m candles). Zero-drift     ┆
-┆ lognormal over 58 min puts P(BTC above $109,800) at 26.2%; market      ┆
-┆ prices the NO token at 48.0%.                                          ┆
+┆ BTC spot $78,426, realized vol 27% (200 × 1m candles). Zero-drift      ┆
+┆ lognormal over 4.0 h puts P(BTC above $78,861) at 16.6%; the book      ┆
+┆ quotes the NO token at 75.0% for this size.                            ┆
 └┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┘
 ```
 
-### A scan
+That is a real receipt. It filled as order `26090800001869670157` for 1.32
+shares at $0.7545.
 
-Three of these five markets are refused. That is the system working.
+### A scan
 
 ```
 SCAN
-5 market(s) · bankroll $9.83 · run cap $6.00 · ¼ Kelly
+12 market(s) · bankroll $14.99 · run cap $1.00 · ¼ Kelly
 ──────────────────────────────────────────────────────────────────────────
-  pass      BTC Up or Down · 5 min                    50% vs 50% · no-edge
-  BET       BTC above $109,800 · 1 h                  74% vs 48% · $1.22
-  BET       ETH above $4,140 · 15 min                 95% vs 70% · $1.50
-  pass      SOL above $204 · 1 h                      65% vs 58% · below-minimum
-  pass      BNB above $872 · 4 h                      54% vs 52% · no-edge
+  side it would buy @ price it would pay · fair = what the model thinks it is worth
+  pass      BNB Up or Down · 7:45AM-8AM ET            NO @ 22% · fair 37%    below-minimum
+  pass      Ethereum Up or Down · 7AM ET              NO @ 99% · fair 100%   conviction-bounds
+  pass      Bitcoin Up or Down · 7:45AM ET            NO @ 51% · fair 52%    no-edge
+  pass      Bitcoin Up or Down · 7AM ET               NO @ 98% · fair 100%   conviction-bounds
+  BET       Bitcoin Up or Down on September 8?        NO @ 74% · fair 83%    $1.00
+  pass      Ethereum Up or Down on September 8?       NO @ 47% · fair 48%    no-edge
+  pass      BNB Up or Down 1d                         YES @ 85% · fair 99%   conviction-bounds
 ──────────────────────────────────────────────────────────────────────────
 ```
+
+Eleven of twelve live markets refused, each with a named reason. That is the
+system working, not the system failing to find anything.
 
 ### The dashboard
 
 **[tryskin.vercel.app](https://tryskin.vercel.app)**
 
-A React page rendering the same `record.json` the CLI exports: the interactive
-console, then the equity curve split at zero, a reliability diagram, the slips,
-and the ledger. No backend: the page reads one file, so what it shows is exactly
-what `skin export` produced. The mode badge in the header is permanent, so a
-demo number can never be mistaken for a live one.
+A React page rendering the same `record.json` the CLI exports. No backend and
+no key: it reads one file, so what it shows is exactly what the CLI produced,
+and it could not place an order if it wanted to. The mode badge is permanent,
+so a demo number can never be mistaken for a live one. Both charts are
+hand-drawn SVG; the whole page gzips to 68 kB.
 
 ![The equity curve](docs/charts.png)
 
-The equity area is clipped at zero, green above and red below, because the
-one question anyone asks of that chart is *"is it above or below the line?"*,
-and that should be answerable from across a room.
-
 ![Calibration](docs/calibration.png)
 
-The reliability diagram plots stated confidence against what actually happened;
-the amber diagonal is perfect honesty, and a bubble's area is the number of
-calls in that bucket, so a single outlier cannot be mistaken for a trend. The
-bars beside it say the same thing in words for anyone who does not read scatter
-plots: what it claimed, what it delivered, and by how much it missed.
-
-![The slips](docs/slips.png)
-
-Every call is a betting slip carrying the reasoning that produced it, stamped
-with what happened. Both charts are hand-drawn SVG, with no charting library,
-because each has a reference line a generic library fights you to draw, and the
-whole page gzips to 68 kB.
-
 ```bash
-npm run web:dev
+npm --prefix web install && npm run web:dev
 ```
 
 <details>
@@ -204,9 +172,8 @@ npm run web:dev
 The dashboard lives in `web/`, and this repo has **two** `package.json` files:
 the CLI's at the root and the web app's in `web/`. Set the Vercel project's
 **Root Directory to `web`**, or the build runs the root `package.json`'s
-`build` script (`tsc -p tsconfig.json`, which compiles the CLI) and deploys
-nothing servable. The symptom is a successful build followed by a 404 on every
-route. [`web/vercel.json`](web/vercel.json) supplies the rest.
+`build` script (which compiles the CLI) and deploys nothing servable. The
+symptom is a successful build followed by a 404 on every route.
 
 </details>
 
@@ -214,7 +181,7 @@ route. [`web/vercel.json`](web/vercel.json) supplies the rest.
 
 ## Quick start
 
-**No wallet, no money, no signup.** The demo path is fully offline and is what
+**No wallet, no money, no signup.** The demo rail is fully offline and is what
 a reviewer should run first:
 
 ```bash
@@ -223,42 +190,44 @@ cd skin-in-the-game
 npm install
 
 npm run skin -- record --demo     # the track record
-npm run skin -- scan   --demo     # opinions, no money
+npm run skin -- scan   --demo     # opinions and refusals, no money
 npm run skin -- stake  --demo     # receipts + typed confirmation
 npm run skin -- claim  --demo     # sweep unclaimed winnings
-npm test                          # 49 unit tests
-```
-
-The dashboard:
-
-```bash
-npm --prefix web install
-npm run web:dev
+npm test                          # 68 tests
+npm --prefix web install && npm run web:dev    # the dashboard
 ```
 
 ### Going live
 
-Live mode needs a Binance **MPC Wallet** (created in the Binance mobile app;
-an agent cannot create one for you) and a small USDT balance on BSC. Stakes are
-about $1; $10–15 is enough to run this for real.
+Live needs a Binance **Agentic Wallet** (created in the Binance mobile app; an
+agent cannot create one for you) and a little USDT on BSC. Stakes are about $1,
+so $10 to $15 runs this for real.
 
 ```bash
-# 1. Install the Agentic Wallet skill
 npx skills add binance/binance-skills-hub/skills/binance-web3/binance-agentic-wallet
-
-# 2. In your agent: "Sign in to Binance Agentic Wallet", approve on your phone
-
-# 3. Optional: connect the MCP Server for market data
-claude mcp add binance-mcp-server --transport http https://agent.binance.com/mcp/agentic
-
-# 4. Run for real
-npm run skin -- record --live
-npm run skin -- stake  --live --budget 6 --per-call 1.5
+npm install -g @binance/agentic-wallet
+baw auth signin                   # approve on your phone
 ```
 
-`skin` auto-detects: if `baw` is on your PATH it goes live, otherwise it falls
-back to demo and says so in the banner. `--live` forces the real path and fails
-loudly rather than silently pretending.
+Once `baw` is on your PATH, **live is the default** and `--demo` is the opt-out.
+`--live` forces it and fails loudly if the CLI is missing, so live is never
+entered by accident either.
+
+```bash
+npm run skin -- doctor            # wallet, session, quota, balance
+npm run skin -- scan              # the real book, re-priced against real quotes
+npm run skin -- stake --budget 1 --per-call 1     # the only command that spends
+npm run skin -- record            # settled record, calibration, open positions
+npm run skin -- claim             # redeem settled wins to the wallet
+```
+
+Start with `doctor`. It probes every wallet call the staking path depends on
+and names the one that would have failed, which is a cheaper way to find a
+signed-out session than discovering it halfway through an order.
+
+Prediction trading has its own daily quota in the Binance app, separate from
+the wallet's general limit. `doctor` reads it, and sizing treats it as a hard
+ceiling.
 
 ---
 
@@ -278,51 +247,28 @@ four terms in the position-sizing minimum, on equal footing with Kelly.
 
 ### Using the MCP Server
 
-Connect it once:
-
 ```bash
 claude mcp add binance-mcp-server --transport http https://agent.binance.com/mcp/agentic
 ```
 
-Then the agent fetches candles under its own authenticated session, writes them
-to a file, and hands the path over:
-
-```json
-{
-  "BTCUSDT": { "interval": "1m", "closes": [109380.2, 109412.5, "…200 closes"] },
-  "ETHUSDT": { "interval": "1m", "closes": ["…"] }
-}
-```
-
-```bash
-skin scan --mcp-data ./klines.json
-```
-
-A committed fixture lets you exercise that path right now, with no MCP session
-and no network:
+The agent fetches candles under its own authenticated session, writes them to a
+file as `{ "BTCUSDT": { "interval": "1m", "closes": [...] } }`, and hands the
+path over with `skin scan --mcp-data ./klines.json`. A committed fixture
+exercises the path with no session and no network:
 
 ```bash
 npm run skin -- scan --demo --mcp-data fixtures/klines.example.json
 ```
 
-```
-  pass      BTC Up or Down · 5 min                    50% vs 50% · no-edge
-  BET       BTC above $109,800 · 1 h                  73% vs 48% · $1.18
-  BET       ETH above $4,140 · 15 min                 96% vs 70% · $1.50
-  pass      SOL above $204 · 1 h                      50% vs 42% · below-minimum
-  pass      BNB above $872 · 4 h                      50% vs 48% · no-edge
-```
-
-Two of those markets have a strike sitting exactly on spot, and the model
-prices both at exactly 50%, the cheapest available check that the lognormal is
-wired up correctly. At the money, over any horizon, a zero-drift walk is a coin
-flip.
+Two of those fixture markets have a strike sitting exactly on spot, and the
+model prices both at exactly 50%: the cheapest available check that the
+lognormal is wired up correctly. At the money, over any horizon, a zero-drift
+walk is a coin flip.
 
 Without `--mcp-data` the CLI falls back to Binance's public market-data REST
-endpoint, which needs no credentials. Same arithmetic either way; the MCP path
-is the one that runs inside the user's Agent OS session. It tries four hosts in
-order, including `data-api.binance.vision`, because `api.binance.com` does not
-resolve from every country this was developed in.
+endpoint, which needs no credentials. Same arithmetic either way. It tries four
+hosts in order, including `data-api.binance.vision`, because `api.binance.com`
+does not resolve from every country this was developed in.
 
 ---
 
@@ -479,18 +425,15 @@ Full derivations in [`skill/references/model.md`](skill/references/model.md).
                       └──────────────────────────────┘
 ```
 
-Three layers, and the boundary between them is enforced, not aspirational:
+Three layers, and the boundary is enforced rather than aspirational:
+**`adapters/`** is everything that touches the outside world, and all failure
+lives there; **`engine/`** is pure and total, with no I/O, clock, randomness or
+network, which is why its unit tests are worth something; **`cli/`** formats and
+confirms, and never computes.
 
-- **`adapters/`**: everything that touches the outside world. Processes,
-  HTTP, the filesystem. All failure lives here.
-- **`engine/`**: pure and total. No I/O, no clock, no randomness, no network.
-  This is why 49 unit tests are worth something.
-- **`cli/`**: rendering and confirmation. Formats; never computes.
-
-The `PredictionClient` interface is the seam. `LiveClient` shells out to `baw`;
-`DemoClient` returns fixtures. Nothing above the seam knows which it has,
-which is what makes the demo path a real exercise of the code rather than a
-mock of it.
+`PredictionClient` is the seam. `LiveClient` shells out to `baw`, `DemoClient`
+returns fixtures, and nothing above the seam knows which it holds. That is what
+makes the demo rail a real exercise of the code rather than a mock of it.
 
 ---
 
@@ -500,31 +443,23 @@ mock of it.
 src/
   domain/types.ts        the vocabulary: Call → StakeVerdict → Position → Record
   adapters/
-    exec.ts              execFile-based process runner (never a shell string)
+    exec.ts              execFile process runner (never a shell string)
     baw.ts               Agentic Wallet client + defensive JSON pickers
     marketdata.ts        REST / MCP / static kline sources, realized vol
-    demo.ts              12 settled fixtures + 5 markets, all five verdicts
+    demo.ts              12 settled fixtures + 5 markets, every verdict reachable
   engine/
     analyst.ts           erf, Φ, P(S>K), market-title parsing
     sizing.ts            Kelly, edge, the four ceilings
     record.ts            Brier, calibration bins, equity curve
     journal.ts           append-only JSONL, first-write-wins
     scan.ts              one scan as data, shared by CLI, dashboard and MCP
-  cli/
-    index.ts             record | scan | stake | claim | positions | export
-    doctor.ts            probe every live wallet call before staking
-    render.ts            receipts, ledgers, sparklines, ANSI-aware padding
-  mcp/
-    server.ts            eight read-only tools · no tool can spend
+  cli/                   commands, receipts, doctor, ANSI-aware rendering
+  mcp/server.ts          eight read-only tools · no tool can spend
 
-skill/
-  SKILL.md               the Agent OS skill · the policy the agent follows
-  references/            command surface + model derivations
-
+skill/                   the Agent OS skill: the policy the agent follows
 web/                     Vite + React dashboard ("Ledger Noir")
 fixtures/                a klines payload for exercising the --mcp-data path
-docs/                    dashboard screenshots used by this README
-test/                    58 tests: the engine, the adapter, the MCP surface
+test/                    68 tests: engine, adapter, MCP surface, live gates
 ```
 
 ~3,300 lines of TypeScript, `strict` with `noUncheckedIndexedAccess`.
@@ -576,39 +511,32 @@ This spends real money from a real wallet, so:
 ## Testing
 
 ```bash
-npm test          # 58 tests
+npm test          # 68 tests
 npm run typecheck # tsc --noEmit, strict
 ```
 
-[`test/math.test.ts`](test/math.test.ts) covers the mathematics, not the
-plumbing: `erf` against known values, `Φ` symmetry, Kelly against hand-computed
-cases, the zero-at-`p=c` property, which ceiling binds in each regime, Brier
-against textbook examples, the `null`-not-`0` rule, calibration bucketing, and
-equity accumulation.
+[`math.test.ts`](test/math.test.ts) covers the mathematics rather than the
+plumbing. [`mcp.test.ts`](test/mcp.test.ts) pins the spend boundary twice: no
+tool name may contain a state-changing verb, and the server's own source may not
+reference `client.placeOrder` or `client.redeem`.
+[`adapter.test.ts`](test/adapter.test.ts) runs the client against a fake `baw`
+binary, and every case in it is a shape this adapter got wrong against the live
+wallet: a `CONNECTED` wallet read as signed out, the general daily limit read in
+place of the prediction quota, USDT on the wrong chain counted as bankroll. All
+three failed silently. [`scan.test.ts`](test/scan.test.ts) covers the two gates
+only a live venue could have taught us, including the market that nearly cost a
+real dollar: a BNB coin flip listed at 3%, quoting at 53%.
 
-[`test/mcp.test.ts`](test/mcp.test.ts) runs a real client against a real server
-over a linked transport pair, and pins the spend boundary: no tool name may
-contain a state-changing verb, and the server's own source may not reference
-`client.placeOrder` or `client.redeem`.
+[CI](.github/workflows/ci.yml) runs all of it on every push, plus a smoke test
+that executes every command in demo mode on a clean machine with no wallet, no
+network and no journal in `$HOME`. It re-exports `web/public/record.json` and
+fails if it differs from the committed copy, so the dashboard payload cannot
+quietly drift from the fixtures that produce it.
 
-[`test/adapter.test.ts`](test/adapter.test.ts) runs the client against a fake
-`baw` binary that replies with the response bodies documented in the Agentic
-Wallet skill. Every case there is a shape this adapter got wrong: a `CONNECTED`
-wallet read as signed out, the general daily limit read in place of the
-prediction quota, and USDT on the wrong chain counted as bankroll. All three
-failed silently, which is the only kind of bug that matters on this path.
-
-[CI](.github/workflows/ci.yml) runs all of that on every push, plus a smoke test
-that executes every command in demo mode on a clean machine, with no wallet, no
-network, no journal in `$HOME`. It also re-exports `web/public/record.json` and
-fails if it differs from the committed copy, so the dashboard payload can never
-quietly drift from the fixtures that are supposed to produce it.
-
-One of them caught a real bug: `parseClaim('BTC Up or Down · 5 min')` returned
+One test caught a real bug: `parseClaim('BTC Up or Down · 5 min')` returned
 `'below'`, because the `below` pattern was tested first and matched the word
-*"Down"*. That silently inverted every two-sided short-duration market, most
-of the tradable universe. It is fixed, and the test that found it is
-[`test/math.test.ts`](test/math.test.ts).
+*"Down"*. That silently inverted every two-sided short-duration market, which is
+most of the tradable universe.
 
 ---
 
@@ -617,28 +545,24 @@ of the tradable universe. It is fixed, and the test that found it is
 Five minutes, in order:
 
 1. **`npm install && npm run skin -- record --demo`**: the whole thesis in one
-   screen. Note that the demo agent is barely profitable and has a mediocre
-   Brier score. That is on purpose.
-2. **`npm run skin -- scan --demo`**: three of five markets refused, each with
-   a named reason.
-3. **`npm run skin -- stake --demo`**: the receipt, and the typed
-   confirmation. Try typing `y`; it will not accept it.
-4. **`claude mcp add skin -- npx tsx src/cli/index.ts mcp --demo`**: then ask
-   your own agent *"how good is skin's record?"* and watch it answer from the
-   settled positions. Ask it to place a bet and watch it discover it cannot.
+   screen. The demo agent is barely profitable and its Brier score is mediocre.
+   That is on purpose.
+2. **`npm run skin -- scan --demo`**: markets refused, each with a named
+   reason.
+3. **`npm run skin -- stake --demo`**: the receipt and the typed confirmation.
+   Try typing `y`; it will not accept it.
+4. **`claude mcp add skin -- npx tsx src/cli/index.ts mcp --demo`**: ask your
+   own agent *"how good is skin's record?"* and watch it answer from settled
+   positions. Then ask it to place a bet, and watch it discover it cannot.
 5. **[`src/engine/sizing.ts`](src/engine/sizing.ts)**: ~120 lines, the heart of
-   the project. Four ceilings, the tightest binds, the binding one is named in
-   the output.
-6. **[`skill/SKILL.md`](skill/SKILL.md)**: the Agent OS skill, including the
-   rule the agent is bound by: *it does not get to state an opinion about a
-   market without backing it.*
+   it. Four ceilings, the tightest binds, and the binding one is named in the
+   output.
 
-What is genuinely different here, stated plainly: this is the only entry we are
-aware of where the agent's **track record is adversarially verifiable**. You do
-not have to trust the dashboard, the README, or the agent. The positions are
-on-chain and the scoring rule is strictly proper. If the agent were lying about
-its confidence, the Brier score would get worse, and the Brier score is the
-number it is judged on.
+What is different here, stated plainly: the agent's **track record is
+adversarially verifiable**. You do not have to trust the dashboard, the README
+or the agent. The positions are on-chain and the scoring rule is strictly
+proper. If the agent inflated its confidence, the Brier score would get worse,
+and the Brier score is the number it is judged on.
 
 ---
 
