@@ -81,7 +81,7 @@ Every number on the dashboard traces back to a settled on-chain position.
 
 ## What it looks like
 
-[![The console](docs/record.png)](https://skin-in-the-game-five.vercel.app)
+[![The console](docs/record.png)](https://tryskin.vercel.app)
 
 The dashboard is not a report you scroll. It is the agent's loop with a button
 on it. **Run a scan** prices five markets one at a time and says out loud why it
@@ -164,7 +164,7 @@ SCAN
 
 ### The dashboard
 
-**[skin-in-the-game-five.vercel.app](https://skin-in-the-game-five.vercel.app)**
+**[tryskin.vercel.app](https://tryskin.vercel.app)**
 
 A React page rendering the same `record.json` the CLI exports: the interactive
 console, then the equity curve split at zero, a reliability diagram, the slips,
