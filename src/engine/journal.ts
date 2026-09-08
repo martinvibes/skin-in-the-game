@@ -46,6 +46,18 @@ export interface JournalEntry {
 
 export const DEFAULT_JOURNAL_PATH = join(homedir(), '.skin', 'journal.jsonl');
 
+/**
+ * Where a run of the given mode is allowed to write.
+ *
+ * Demo runs must never touch the live journal. The journal *is* the track
+ * record: a synthetic call landing in it would enter the live calibration and
+ * the live Brier score, and a Brier score with invented calls in it is worse
+ * than no Brier score, because it still looks like evidence.
+ */
+export function journalPathFor(mode: 'live' | 'demo'): string {
+  return mode === 'demo' ? join(homedir(), '.skin', 'journal.demo.jsonl') : DEFAULT_JOURNAL_PATH;
+}
+
 /** Append one entry. First write for a token id wins; later ones are ignored. */
 export async function record(
   entry: JournalEntry,

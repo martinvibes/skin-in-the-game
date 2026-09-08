@@ -15,7 +15,7 @@
 import type { PredictionClient } from '../adapters/baw.js';
 import type { MarketDataSource } from '../adapters/marketdata.js';
 import type { Budget, Rail, Side, Sizing } from '../domain/types.js';
-import { formOpinion } from './analyst.js';
+import { formOpinion, priceClause } from './analyst.js';
 import { sizeStake } from './sizing.js';
 
 /**
@@ -207,7 +207,12 @@ export async function scanMarkets(
     const priced = probe.quoted
       ? sizeStake(o.conviction, probe.price, bankroll, budget)
       : sized;
-    const repriced = { ...view, marketPrice: probe.price, edge: o.conviction - probe.price };
+    const repriced = {
+      ...view,
+      marketPrice: probe.price,
+      edge: o.conviction - probe.price,
+      thesis: priceClause(o.thesisHead, o.side, probe.price, probe.quoted),
+    };
     if (!priced.ok) {
       steps.push({
         ...repriced,

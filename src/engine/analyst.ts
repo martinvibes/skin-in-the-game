@@ -206,6 +206,21 @@ export function parseStrike(title: string): number | null {
 // The analyst
 // ---------------------------------------------------------------------------
 
+/**
+ * Close a thesis with the price the call is actually answering for.
+ *
+ * `quoted` distinguishes the two kinds of price a prediction market will hand
+ * you: the last trade, which may be an hour old on a thin book, and a quote for
+ * the size you intend to buy, which is what you will really pay. The journal is
+ * the whole basis of the track record, so it should say which one it means.
+ */
+export function priceClause(head: string, side: Side, price: number, quoted: boolean): string {
+  const pct = `${(price * 100).toFixed(1)}%`;
+  return quoted
+    ? `${head}; the book quotes the ${side} token at ${pct} for this size.`
+    : `${head}; market prices the ${side} token at ${pct}.`;
+}
+
 export interface Opinion {
   /** Probability that `side` resolves true. */
   conviction: number;
@@ -216,6 +231,8 @@ export interface Opinion {
   marketPrice: number;
   /** Human-readable reasoning. Display only — never parsed. */
   thesis: string;
+  /** The thesis without its closing price clause, for restating at the real price. */
+  thesisHead: string;
   /** Identifier written to the journal, e.g. `quant/lognormal`. */
   analyst: string;
   /** The observation the opinion was built from, for the UI's "show your work". */
@@ -315,11 +332,18 @@ export async function formOpinion(
   const conviction = takeNo ? 1 - pYes : pYes;
 
   const horizonLabel = describeHorizon(years);
-  const thesis =
+
+  // The reasoning splits at the semicolon on purpose. Everything before it is
+  // the model's own work and never changes. Everything after it is a price,
+  // and the price we first read is the last *traded* one, which a quote may
+  // contradict by tens of points. Keeping the halves separate lets the caller
+  // restate the thesis against the price actually paid, so the journalled
+  // reasoning and the journalled number can never disagree.
+  const thesisHead =
     `${claim.asset} spot ${fmtPrice(obs.spot)}, realized vol ${(obs.annualVol * 100).toFixed(0)}% ` +
     `(${obs.samples} × ${obs.interval} candles). Zero-drift lognormal over ${horizonLabel} puts ` +
-    `P(${claim.asset} ${claim.direction} ${fmtPrice(strike)}) at ${(pAbove * 100).toFixed(1)}%; ` +
-    `market prices the ${side} token at ${(token.price! * 100).toFixed(1)}%.`;
+    `P(${claim.asset} ${claim.direction} ${fmtPrice(strike)}) at ${(pAbove * 100).toFixed(1)}%`;
+  const thesis = priceClause(thesisHead, side, token.price!, false);
 
   return {
     ok: true,
@@ -329,6 +353,7 @@ export async function formOpinion(
       tokenId: token.tokenId,
       marketPrice: token.price!,
       thesis,
+      thesisHead,
       analyst: 'quant/lognormal',
       observation: obs,
     },

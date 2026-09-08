@@ -35,11 +35,16 @@ import {
   StaticSource,
   type MarketDataSource,
 } from '../adapters/marketdata.js';
-import { formOpinion } from '../engine/analyst.js';
+import { formOpinion, priceClause } from '../engine/analyst.js';
 import { sizeStake } from '../engine/sizing.js';
 import { buildRecord, joinConvictions } from '../engine/record.js';
 import { closingSoon, probePrice, scanMarkets } from '../engine/scan.js';
-import { load as loadJournal, loadEntries, record as journalRecord } from '../engine/journal.js';
+import {
+  journalPathFor,
+  load as loadJournal,
+  loadEntries,
+  record as journalRecord,
+} from '../engine/journal.js';
 import type { Budget, StakeVerdict } from '../domain/types.js';
 import {
   heading,
@@ -176,6 +181,35 @@ async function cmdRecord(client: PredictionClient, flags: Flags) {
   console.log(renderCalibration(rec));
   console.log(renderSettled(withConviction, flags.limit));
 
+  // Money already committed, outcome not yet known. This is the only part of
+  // the record the agent cannot influence any more and cannot yet be judged on,
+  // and leaving it out made `record` print "nothing to show" to an operator who
+  // had a live position open — the one moment they most need to see it.
+  const open = await client.openPositions();
+  if (open.length > 0) {
+    const staked = open.reduce((a, p) => a + p.cost, 0);
+    const payout = open.reduce((a, p) => a + p.shares, 0);
+    console.log(
+      heading('open now', `${open.length} position(s) · ${usd(staked)} committed · pays ${usd(payout)} if every one wins`),
+    );
+    console.log(
+      '  ' + pc.dim(padEnd('market', 42) + padEnd('side', 6) + padEnd('said', 8) + padEnd('paid', 8) + 'settles'),
+    );
+    for (const p of open) {
+      const said = p.conviction ?? journal.get(p.tokenId);
+      console.log(
+        '  ' +
+          padEnd(clip(p.question, 40), 42) +
+          padEnd(pc.bold(p.side), 6) +
+          // The adapter cannot know what the agent believed; the journal can.
+          padEnd(said === undefined ? pc.dim('—') : pct(said, 0), 8) +
+          padEnd(pct(p.avgPrice, 0), 8) +
+          pc.dim(untilLabel(p.endDate)),
+      );
+    }
+    console.log(rule());
+  }
+
   const unclaimed = await client.unclaimed();
   if (unclaimed.length > 0) {
     const total = unclaimed.reduce((a, u) => a + u.payout, 0);
@@ -249,6 +283,7 @@ async function cmdScan(
       conviction: o.conviction,
       marketPrice: o.marketPrice,
       thesis: o.thesis,
+      thesisHead: o.thesisHead,
       createdAt: new Date().toISOString(),
     };
 
@@ -275,6 +310,7 @@ async function cmdScan(
     );
     const priced = probe.quoted ? sizeStake(o.conviction, probe.price, bankroll, budget) : sized;
     call.marketPrice = probe.price;
+    call.thesis = priceClause(o.thesisHead, o.side, probe.price, probe.quoted);
 
     if (!priced.ok) {
       const detail =
@@ -401,16 +437,19 @@ async function cmdStake(
       // Journal BEFORE announcing success: the conviction must be on record
       // even if the confirmation output is lost. The price recorded is the one
       // actually paid, not the one that prompted the call.
-      await journalRecord({
-        tokenId: v.call.tokenId,
-        conviction: v.call.conviction,
-        marketPrice: paid,
-        stake: v.sizing.stakeUsdt,
-        question: v.call.question,
-        thesis: v.call.thesis,
-        analyst: 'quant/lognormal',
-        at: new Date().toISOString(),
-      });
+      await journalRecord(
+        {
+          tokenId: v.call.tokenId,
+          conviction: v.call.conviction,
+          marketPrice: paid,
+          stake: v.sizing.stakeUsdt,
+          question: v.call.question,
+          thesis: priceClause(v.call.thesisHead, v.call.side, paid, true),
+          analyst: 'quant/lognormal',
+          at: new Date().toISOString(),
+        },
+        journalPathFor(client.mode),
+      );
 
       console.log(
         '  ' +

@@ -113,6 +113,8 @@ export interface Call {
   marketPrice: number;
   /** One-line justification. Shown on the receipt; never used for arithmetic. */
   thesis: string;
+  /** The thesis without its price clause, so execution can restate it at the price paid. */
+  thesisHead: string;
   /** When the agent formed this view. */
   createdAt: string;
 }
