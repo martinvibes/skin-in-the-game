@@ -686,6 +686,7 @@ const RAILS: Array<{
       ['npm run skin -- scan --demo', 'Opinions and refusals, each one named. Commits nothing.'],
       ['npm run skin -- stake --demo', 'Receipts and the typed confirmation, with nothing sent.'],
       ['npm run skin -- claim --demo', 'Sweeps settled wins that were never redeemed.'],
+      ['claude mcp add skin -- npx tsx src/cli/index.ts mcp --demo', 'Hands the eight read-only tools to your own agent. Still no wallet.'],
     ],
   },
   {

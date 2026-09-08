@@ -11,13 +11,13 @@
 Its track record is not a claim it writes about itself.
 It is settled positions on Binance prediction markets, scored with a rule it cannot game.
 
-**[Live dashboard →](https://tryskin.vercel.app/)**
+**[Live dashboard →](https://tryskin.vercel.app/)** · **[2-minute demo →](https://youtu.be/kcDXys0YT3k)**
 
 [![Binance Agent OS](https://img.shields.io/badge/Binance-Agent%20OS-F0B90B?style=flat-square)](https://agent.binance.com)
 [![Agentic Wallet](https://img.shields.io/badge/Agentic%20Wallet-baw-F0B90B?style=flat-square)](https://github.com/binance/binance-skills-hub)
 [![MCP Server](https://img.shields.io/badge/MCP-agent.binance.com-5FD693?style=flat-square)](https://agent.binance.com/mcp/agentic)
 [![ci](https://img.shields.io/github/actions/workflow/status/martinvibes/skin-in-the-game/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/martinvibes/skin-in-the-game/actions)
-[![tests](https://img.shields.io/badge/tests-62%20passing-5FD693?style=flat-square)](test/)
+[![tests](https://img.shields.io/badge/tests-68%20passing-5FD693?style=flat-square)](test/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square)](tsconfig.json)
 [![license](https://img.shields.io/badge/license-MIT-EFE8DA?style=flat-square)](LICENSE)
 
@@ -156,7 +156,7 @@ A React page rendering the same `record.json` the CLI exports. No backend and
 no key: it reads one file, so what it shows is exactly what the CLI produced,
 and it could not place an order if it wanted to. The mode badge is permanent,
 so a demo number can never be mistaken for a live one. Both charts are
-hand-drawn SVG; the whole page gzips to 68 kB.
+hand-drawn SVG; the whole page gzips to 70 kB.
 
 ![The equity curve](docs/charts.png)
 
@@ -275,18 +275,98 @@ does not resolve from every country this was developed in.
 ## Skin as an MCP server
 
 The agent keeping this record should not be the only one able to read it. `skin
-mcp` speaks MCP over stdio, so any host (Claude Code, Claude Desktop, another
-desk's agent) can interrogate the record directly instead of trusting a
+mcp` speaks MCP over stdio, so any host (Claude Code, Claude Desktop, Cursor,
+another desk's agent) can interrogate this one directly instead of trusting a
 screenshot of it.
 
+Eight tools. **None of them spends.**
+
+### Running it
+
+**Zero setup, in this repo.** A [`.mcp.json`](.mcp.json) is committed, so a
+clone opened in Claude Code offers the server on its own. Approve it at the
+prompt and the tools are there.
+
+**One line, from the repo root:**
+
 ```bash
+npm install
 claude mcp add skin -- npx tsx src/cli/index.ts mcp --demo
 ```
 
-A [`.mcp.json`](.mcp.json) is committed too, so a clone of this repo opened in
-Claude Code offers the server without any setup at all.
+**Any other MCP host** (Claude Desktop, Cursor, an agent you wrote yourself)
+launches the same process. Give it an absolute path, because the host's working
+directory is not yours:
 
-Eight tools. None of them spends.
+```json
+{
+  "mcpServers": {
+    "skin": {
+      "command": "npx",
+      "args": [
+        "tsx",
+        "/absolute/path/to/skin-in-the-game/src/cli/index.ts",
+        "mcp",
+        "--demo"
+      ]
+    }
+  }
+}
+```
+
+Run `npm install` in the clone once and that is the whole install. No API key,
+no wallet, no build step: `--demo` serves fixtures that ship in the source, so
+the tools answer with the network off.
+
+One wrinkle worth knowing before you blame the config: launched from outside
+the repo, `npx` cannot see the local `tsx` and fetches its own copy, which takes
+a few seconds and can trip a host's first connect timeout. It is cached after
+that, so reconnecting works. Hosts that support a `cwd` field avoid it entirely
+by pointing at the clone.
+
+**Pointing it at the real wallet** is one flag less. Drop `--demo` and the
+tools read live markets, the live journal and settled positions through `baw`,
+which requires `baw auth signin` to have happened. It stays read-only either
+way:
+
+```json
+"args": ["tsx", "/absolute/path/to/skin-in-the-game/src/cli/index.ts", "mcp"]
+```
+
+Sizing defaults for `skin_propose` are passed exactly as the CLI takes them,
+after the `mcp` argument:
+
+```bash
+npx tsx src/cli/index.ts mcp --limit 12 --budget 6 --per-call 1.5 --kelly 0.25
+```
+
+**Knowing it came up.** Every byte of stdout belongs to the JSON-RPC stream, so
+the server greets you on stderr, where the host will show it and the protocol
+will never read it:
+
+```
+  SKIN MCP  demo mode · listening on stdio
+
+    skin_record       settled calls, PnL, Brier score
+    skin_calibration  where the numbers break down
+    skin_slips        convictions written before the outcome
+    skin_positions    money committed, not yet resolved
+    skin_unclaimed    settled wins still on-chain
+    skin_scan         every open market, with the working
+    skin_opinion      one market: vol, horizon, probability
+    skin_propose      a sized stake, and the command a human must run
+
+  Eight tools, none of which can spend. There is deliberately no
+  skin_stake: an agent can reason all the way to a position and still
+  cannot open one.
+
+  stdout is the protocol, so nothing more will be printed here.
+  Waiting for a client. Ctrl-C to stop.
+```
+
+Silence after that line is what success looks like.
+
+### What the calling agent gets
 
 | Tool | Answers |
 |---|---|
@@ -298,6 +378,30 @@ Eight tools. None of them spends.
 | `skin_scan` | A view on every open market, with the full working |
 | `skin_opinion` | One market: spot, volatility, horizon, probability, edge |
 | `skin_propose` | A sized stake, and the command a human must run to place it |
+
+Each tool returns a one-line headline a model can act on, then the JSON behind
+it, so a host that only shows the first line still shows something true. In
+demo mode every headline is tagged `[demo mode: synthetic fixtures, no wallet,
+no money moved]`, because the one thing worse than a fake number is a fake
+number a second agent repeats as real.
+
+The server also ships MCP `instructions`, which most hosts load into the calling
+model's context on connect. They tell it how to *judge* this agent rather than
+how to relay it: start at `skin_record`, treat a Brier score above 0.25 as
+worse than a coin-flipper who always says 50%, and never tell a user a bet was
+placed.
+
+### Ask it these three things, in this order
+
+1. *"How good is Skin's record? Is it worth listening to?"* It answers off
+   `skin_record` and `skin_calibration`, which are pure functions of settled
+   positions. The demo record is mediocre and it will say so.
+2. *"What does it like right now, and why?"* `skin_scan` for the book,
+   `skin_opinion` for the model's working on a single market: spot, realized
+   volatility, horizon, probability, edge.
+3. *"Go ahead and place it."* It cannot, and it will tell you why.
+
+That third turn is the demo.
 
 ### There is no `skin_stake` tool, and that is the design
 
@@ -554,9 +658,12 @@ Five minutes, in order:
 4. **`claude mcp add skin -- npx tsx src/cli/index.ts mcp --demo`**: ask your
    own agent *"how good is skin's record?"* and watch it answer from settled
    positions. Then ask it to place a bet, and watch it discover it cannot.
+   Setup for any other host is in [Skin as an MCP server](#skin-as-an-mcp-server).
 5. **[`src/engine/sizing.ts`](src/engine/sizing.ts)**: ~120 lines, the heart of
    it. Four ceilings, the tightest binds, and the binding one is named in the
    output.
+
+If you would rather watch than run: **[2-minute demo](https://youtu.be/kcDXys0YT3k)**.
 
 What is different here, stated plainly: the agent's **track record is
 adversarially verifiable**. You do not have to trust the dashboard, the README
