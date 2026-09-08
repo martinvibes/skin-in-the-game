@@ -57,6 +57,7 @@ skin stake --yes                  # unattended; only when explicitly asked
 | `--per-call` | `1.5` | Ceiling on any single stake |
 | `--kelly` | `0.25` | Kelly fraction applied to the full-Kelly number |
 | `--min-order` | `1` | Venue minimum; below this the call is skipped |
+| `--min-horizon` | `2` | Minutes. A market resolving sooner is declined as `closing-soon` rather than raced |
 | `--limit` | `12` | Markets to consider |
 
 Prints a receipt per proposed stake, then blocks on a typed `stake`. Typing

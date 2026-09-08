@@ -17,7 +17,7 @@ It is settled positions on Binance prediction markets, scored with a rule it can
 [![Agentic Wallet](https://img.shields.io/badge/Agentic%20Wallet-baw-F0B90B?style=flat-square)](https://github.com/binance/binance-skills-hub)
 [![MCP Server](https://img.shields.io/badge/MCP-agent.binance.com-5FD693?style=flat-square)](https://agent.binance.com/mcp/agentic)
 [![ci](https://img.shields.io/github/actions/workflow/status/martinvibes/skin-in-the-game/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/martinvibes/skin-in-the-game/actions)
-[![tests](https://img.shields.io/badge/tests-58%20passing-5FD693?style=flat-square)](test/)
+[![tests](https://img.shields.io/badge/tests-62%20passing-5FD693?style=flat-square)](test/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square)](tsconfig.json)
 [![license](https://img.shields.io/badge/license-MIT-EFE8DA?style=flat-square)](LICENSE)
 
@@ -384,19 +384,25 @@ that reaches for `client.placeOrder` fails the suite rather than the review.
 
 ## Why it refuses
 
-Money moves only if a call survives all five checks. Each one has a single job,
+Money moves only if a call survives all seven checks. Each one has a single job,
 and each produces a named verdict rather than a silent skip.
 
 | # | Check | Rejects |
 |---|---|---|
-| 1 | **Model** | A market whose title cannot be parsed, or with too little price history to measure volatility → `no-price` |
-| 2 | **Edge** | Disagreement with the market smaller than 4 points → `no-edge` |
-| 3 | **Bounds** | Conviction outside `[0.02, 0.98]`, where the model's own error exceeds its claimed edge → `conviction-bounds` |
-| 4 | **Sizing** | Quarter-Kelly stake below the venue minimum → `below-minimum`. Never rounded up. |
-| 5 | **Budget** | Run cap or the wallet's daily limit already spent → `budget-exhausted` |
+| 1 | **Horizon** | A market resolving sooner than `--min-horizon` (default 2 minutes), which cannot be priced, quoted and confirmed before it settles → `closing-soon` |
+| 2 | **Model** | A market whose title cannot be parsed, or with too little price history to measure volatility → `no-price`. Barrier questions ("will BTC *hit* $110k") are refused outright: they resolve on touching the level, and this model prices terminal probability only. |
+| 3 | **Edge** | Disagreement with the market smaller than 4 points → `no-edge` |
+| 4 | **Bounds** | Conviction outside `[0.02, 0.98]`, where the model's own error exceeds its claimed edge → `conviction-bounds` |
+| 5 | **Sizing** | Quarter-Kelly stake below the venue minimum → `below-minimum`. Never rounded up. |
+| 6 | **Budget** | Run cap or the wallet's daily limit already spent → `budget-exhausted` |
+| 7 | **Re-quote** | The edge was measured against the last *traded* price. The quote returns `averagePrice`, the price this order actually fills at, and the two are not close: a market listed at `0.81` quoted at `0.90` seconds later. Every call is re-tested against the price we are really paying, and abandoned if the edge that justified it has gone. |
+
+Six of the seven run before a quote is requested. The seventh runs with the
+quote in hand, immediately before the order goes out, because it is the only one
+that can see the real price.
 
 **A scan where nothing clears is a successful scan.** The demo fixtures are
-tuned so all five verdicts are reachable, because a gate you cannot see fire is
+tuned so all the verdicts are reachable, because a gate you cannot see fire is
 a gate you cannot trust.
 
 ---
@@ -538,7 +544,7 @@ test/                    58 tests: the engine, the adapter, the MCP surface
 | `skin doctor` | — | Probe every live wallet call before the first real stake |
 | `skin mcp` | — | Serve the record to other agents over MCP, read-only |
 
-Flags: `--demo --live --yes --json --budget --per-call --kelly --min-order --limit --mcp-data --deep --out`.
+Flags: `--demo --live --yes --json --budget --per-call --kelly --min-order --min-horizon --limit --mcp-data --deep --out`.
 Full reference: [`skill/references/commands.md`](skill/references/commands.md).
 
 ---
