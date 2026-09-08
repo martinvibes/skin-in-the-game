@@ -386,11 +386,22 @@ export class LiveClient implements PredictionClient {
   }
 
   async redeem(tokenIds: string[]) {
+    // `--binanceChainId` is documented as optional and is not: without it the
+    // venue answers "chainId not supported" and the winnings stay unclaimed.
+    // Every prediction market on this venue settles in USDT on BSC, so 56 is
+    // the only value that can be right here.
     const d = await runBaw(
-      ['prediction', 'trade', 'redeem', '--tokenIds', tokenIds.join(',')],
+      ['prediction', 'trade', 'redeem', '--tokenIds', tokenIds.join(','), '--binanceChainId', '56'],
       this.#opts,
     );
-    return { txHash: str(d, 'txHash', 'transactionHash', 'hash') };
+    // A batch redeem answers with one result per token rather than a top-level
+    // hash, so fall through to the first result's hash before giving up.
+    const first = pickArray(d, 'results')[0];
+    return {
+      txHash:
+        str(d, 'txHash', 'transactionHash', 'hash') ??
+        (first ? str(first, 'txHash', 'transactionHash', 'hash') : null),
+    };
   }
 }
 
